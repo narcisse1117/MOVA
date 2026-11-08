@@ -49,6 +49,8 @@
     "enabled": true,
     "monthly_limit": 55000,
     "daily_limit": 1900,
+    "local_search_daily_limit": 20000,
+    "_local_search_note": "NAVER API HUB 지역 검색: 하루 25,000회 (데이터/naver_search_key.txt, 키가 택시 경로와 다름)",
     "real_fare_range": 0.08
   },
 

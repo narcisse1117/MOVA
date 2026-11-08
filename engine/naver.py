@@ -24,9 +24,12 @@ DB_PATH = os.path.join(ENGINE, "cache", "naver.sqlite")
 URL = "https://maps.apigw.ntruss.com/map-direction/v1/driving"
 GEOCODE_URL = "https://maps.apigw.ntruss.com/map-geocode/v2/geocode"
 REVERSE_URL = "https://maps.apigw.ntruss.com/map-reversegeocode/v2/gc"
+LOCAL_URL = "https://naverapihub.apigw.ntruss.com/search/v1/local"
+SEARCH_KEY_PATH = os.path.join(ROOT, "데이터", "naver_search_key.txt")
 with open(os.path.join(ROOT, "config", "fares.json"), encoding="utf-8") as _f:
     CFG = json.load(_f).get("naver", {})
 MONTHLY_LIMIT = CFG.get("monthly_limit", 55000)
+LOCAL_DAILY_LIMIT = CFG.get("local_search_daily_limit", 20000)
 DAILY_LIMIT = CFG.get("daily_limit", 1900)       # 한 사람이 몰아 써도 한 달 한도가 며칠 만에 바닥나지 않게
 ENABLED = CFG.get("enabled", True)
 DURATION_FRESH_MIN = 15      # 저장된 소요 시간을 '지금 교통'으로 믿는 시간
@@ -119,8 +122,8 @@ def route(points, need_fresh_duration=False):
     return {"dist_m": total_d, "duration_sec": total_t, "legs": legs, "fresh": True, "cached": False}
 
 
-def _get_json(url, params):
-    cid, sec = _load_key()
+def _get_json(url, params, key=None):
+    cid, sec = key or _load_key()
     req = urllib.request.Request(f"{url}?{urllib.parse.urlencode(params)}",
                                  headers={"x-ncp-apigw-api-key-id": cid, "x-ncp-apigw-api-key": sec,
                                           "Accept": "application/json"})
@@ -174,3 +177,46 @@ def reverse(lat, lng):
                 road = f"{land.get('name', '')} {land.get('number1', '')}".strip()
         return {"si": reg["area1"]["name"], "gu": reg["area2"]["name"], "dong": reg["area3"]["name"], "road": road}
     return _geo_cached(f"r:{lat:.4f},{lng:.4f}", fetch)
+
+
+_search_key = None
+
+
+def _load_search_key():
+    global _search_key
+    if _search_key is None and os.path.exists(SEARCH_KEY_PATH):
+        lines = [l.strip() for l in open(SEARCH_KEY_PATH, encoding="utf-8-sig").read().splitlines() if l.strip()]
+        if len(lines) >= 2:
+            _search_key = (lines[0], lines[1])
+    return _search_key
+
+
+def local_search(query, n=5):
+    """가게·장소 이름 → [{name, address, jibun, category, lat, lng}] (NAVER API HUB 지역 검색, 최대 5개).
+    같은 검색어는 저장해 두고, 하루 LOCAL_DAILY_LIMIT건을 넘으면 부르지 않는다."""
+    key = _load_search_key()
+    if key is None or not query.strip():
+        return []
+    q = query.strip()
+
+    def fetch():
+        day = "local:" + dt.date.today().isoformat()
+        with _lock, _db() as con:
+            r = con.execute("select calls from usage where month=?", (day,)).fetchone()
+            if (r[0] if r else 0) >= LOCAL_DAILY_LIMIT:
+                return None
+            con.execute("insert into usage values (?, 1) on conflict(month) do update set calls = calls + 1", (day,))
+        j = _get_json(LOCAL_URL, {"query": q, "display": n}, key=key)
+        if j is None:
+            return None
+        out = []
+        for it in j.get("items", []):
+            try:
+                lng, lat = int(it["mapx"]) / 1e7, int(it["mapy"]) / 1e7
+            except (KeyError, ValueError):
+                continue
+            name = it.get("title", "").replace("<b>", "").replace("</b>", "").replace("&amp;", "&")
+            out.append({"name": name, "address": it.get("roadAddress") or it.get("address"),
+                        "jibun": it.get("address"), "category": it.get("category"), "lat": lat, "lng": lng})
+        return out
+    return _geo_cached("l:" + q, fetch) or []

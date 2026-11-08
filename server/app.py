@@ -242,7 +242,7 @@ def in_seoul(lat, lng):
 
 @app.get("/api/geocode")
 def geocode(q: str):
-    """검색어 → 후보. 역 이름은 우리 역 목록에서, 그 밖은 네이버 주소 검색(장소 이름은 못 찾음). 서울 범위만."""
+    """검색어 → 후보. 역 이름은 우리 역 목록, 주소는 네이버 Geocoding, 가게·장소 이름은 네이버 지역 검색. 서울 범위만."""
     q = q.strip()
     if not q:
         return {"query": q, "results": []}
@@ -250,6 +250,7 @@ def geocode(q: str):
     key = q.replace("역", "").strip()
     st = stations()
     m = st[st.key == key]
+    exact_station = not m.empty
     if m.empty and len(key) >= 2:
         m = st[st.key.str.startswith(key)].head(5)
     for r in m.itertuples():
@@ -257,12 +258,18 @@ def geocode(q: str):
             out.append({"kind": "station", "label": f"{r.name}역" if not r.name.endswith("역") else r.name,
                         "address": ", ".join(l.replace("서울 도시철도 ", "") for l in r.lines),
                         "lat": round(r.lat, 6), "lng": round(r.lng, 6)})
-    for a in naver.geocode(q):
-        if in_seoul(a["lat"], a["lng"]):
-            out.append({"kind": "address", "label": a["address"], "address": a["jibun"],
-                        "lat": a["lat"], "lng": a["lng"]})
+    addresses = [a for a in naver.geocode(q) if in_seoul(a["lat"], a["lng"])]
+    # 주소로 딱 맞으면 가게 검색은 건너뛴다 (호출 절약). 아니면 가게·장소 이름으로 찾는다
+    if not addresses and not exact_station:
+        for p in naver.local_search(q):
+            if in_seoul(p["lat"], p["lng"]):
+                out.append({"kind": "place", "label": p["name"], "address": p["address"],
+                            "category": p["category"], "lat": round(p["lat"], 6), "lng": round(p["lng"], 6)})
+    for a in addresses:
+        out.append({"kind": "address", "label": a["address"], "address": a["jibun"],
+                    "lat": a["lat"], "lng": a["lng"]})
     return {"query": q, "results": out[:10],
-            "notes": [] if out else ["역 이름이나 도로명·지번 주소로 검색해 주세요 (가게·건물 이름 검색은 아직 없음)"]}
+            "notes": [] if out else ["역 이름, 가게·장소 이름, 도로명·지번 주소로 검색해 주세요 (서울 안만)"]}
 
 
 @app.get("/api/reverse")

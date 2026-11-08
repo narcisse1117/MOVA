@@ -114,5 +114,5 @@
 12. ~~네이버 Directions 5 연동~~ 완료 (2026-11-08): 키 `데이터/naver_key.txt`, `engine/naver.py`. 화면에 보여줄 택시 구간만 실제 경로(검색당 평균 3.3건), 모임 택시는 경유지로 1대당 1건. 월 55,000건 넘으면 추정. 우회 계수 1.35 → 1.5로 보정. 처음 택시→열차 3분 여유. **Application Services > Maps로 신청해야 무료(AI NAVER API 쪽은 무료 없음)**. Geocoding·Reverse Geocoding도 같은 키로 쓸 수 있음(주소 입력용, 아직 안 붙임)
 13. **네이버 대조 결과 (2026-11-08):** 4개 중 지하철·일반버스 3개 일치 → **ODsay 전환 불필요**. 심야버스 경로는 가상 시각 때문에 22분 낙관적 → 가상 운행은 배차 절반만큼 일찍 와야 탄다고 보수적으로 바꿈(지금은 6~11분 보수적). **심야버스 실제 통과 시각 수집 중** (`prep/collect_night_bus.py`, 2026-11-08 밤) → 다음: 수집 결과로 N버스 실제 시간표 만들어 엔진에 넣기
 14. ~~첫 구간 실시간~~ 버스 1차 완료 (2026-11-08): `engine/realtime.py`, 출발 20분 안이면 첫 버스 실시간 도착·막차·놓침 표시. 지하철 실시간과 뒤 구간 재계산은 아직
-15. ~~주소 입력~~ 완료 (2026-11-08): `GET /api/geocode?q=`(역 목록 + 네이버 Geocoding), `GET /api/reverse`. 네이버 Application에 Geocoding·Reverse Geocoding 추가함. 가게·건물 이름 검색은 안 됨(지역 검색 API 별도)
+15. ~~주소 입력~~ 완료 (2026-11-08): `GET /api/geocode?q=`(역 목록 + 네이버 Geocoding), `GET /api/reverse`. 네이버 Application에 Geocoding·Reverse Geocoding 추가함. 가게·장소 이름은 네이버 지역 검색(NAVER API HUB, 키 `데이터/naver_search_key.txt`, 하루 25,000회)으로 추가 (2026-11-08)
 16. 기능명세서 갱신 (데이터 출처, 실시간 반영)

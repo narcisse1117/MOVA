@@ -34,7 +34,7 @@ python -m uvicorn server.app:app --reload --port 8000
 |---|---|---|
 | GET | `/api/config` | 서비스 이름 등 (`config/app.json`) |
 | GET | `/api/health` | 서버 상태 |
-| GET | `/api/geocode?q=...` | 검색어 → 후보 (`kind`: `station` 역 / `address` 주소). 서울 범위만, 최대 10개 |
+| GET | `/api/geocode?q=...` | 검색어 → 후보 (`kind`: `station` 역 / `place` 가게·장소 / `address` 주소). 서울 범위만, 최대 10개 |
 | GET | `/api/reverse?lat=&lng=` | 좌표 → 표시 이름 (`label`: "노원구 상계동") |
 | POST | `/api/routes` | F1·F2: 택시 직행 / 대중교통만 / 조합 |
 | POST | `/api/deadline` | F3: 출발 마감 시각 |
@@ -45,11 +45,11 @@ python -m uvicorn server.app:app --reload --port 8000
 
 ### 장소 검색 (`/api/geocode`, `/api/reverse`)
 
-- 역 이름(“강남역”, “잠실”)은 우리 역 목록에서, 도로명·지번 주소(“노원구 상계로 69”, “신림동 1422”)는 네이버 Geocoding으로 찾는다
-- **가게·건물 이름(“스타벅스 강남”)은 못 찾는다.** 네이버 Geocoding은 주소 전용이라서다. 필요하면 네이버 지역 검색 API(다른 서비스)를 붙인다
+- 역 이름(“강남역”, “잠실”)은 우리 역 목록, 도로명·지번 주소(“노원구 상계로 69”)는 네이버 Geocoding, 가게·장소 이름(“스타벅스 강남”, “강남역 고기집”)은 **네이버 지역 검색**(NAVER API HUB, 최대 5개, `category` 포함)
+- 호출 절약: 역 이름이 정확히 맞거나 주소로 찾아지면 지역 검색은 부르지 않는다. 지역 검색 키는 `데이터/naver_search_key.txt` (택시 경로 키와 다름), 하루 20,000건 상한 (네이버 한도 25,000)
 - 지도에서 핀을 찍은 좌표는 `/api/reverse`로 이름을 붙인다
 - 결과는 `engine/cache/naver.sqlite`에 저장해서 같은 검색은 다시 부르지 않는다. 무료 월 300만 건
-- 예시: `server/examples/geocode_gangnam.json`
+- 예시: `server/examples/geocode_gangnam.json`, `geocode_place.json`
 
 ### `POST /api/routes`
 
