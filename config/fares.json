@@ -1,0 +1,54 @@
+{
+  "_comment": "요금·추정 규칙. 코드에 숫자를 직접 쓰지 않고 여기서 읽는다. status가 '확인 필요'인 값은 공식 출처로 다시 확인한다.",
+
+  "taxi_seoul_midsize": {
+    "source": "서울시 교통분야 누리집 '서울 택시요금' (2023-02-01 04시 시행, 페이지 수정 2026-10-14) https://news.seoul.go.kr/traffic/archives/1659",
+    "status": "확인",
+    "base_distance_m": 1600,
+    "distance_unit_m": 131,
+    "time_unit_sec": 30,
+    "time_fare_below_kmh": 15.72,
+    "bands": {
+      "day":     {"base": 4800, "unit": 100, "hours": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]},
+      "night20": {"base": 5800, "unit": 120, "hours": [22, 2, 3]},
+      "night40": {"base": 6700, "unit": 140, "hours": [23, 0, 1]}
+    },
+    "outside_city_surcharge": 0.2,
+    "round_to": 100,
+    "band_rule": "탄 시각(승차 시각)의 시간대 요금을 끝까지 쓴다고 가정 (추정)"
+  },
+
+  "taxi_estimate": {
+    "status": "추정. 네이버 Directions 5 키가 나오면 실제 경로 거리·시간으로 바꾼다",
+    "detour": 1.35,
+    "detour_low": 1.2,
+    "detour_high": 1.55,
+    "speed_kmh_by_hour": {"22": 24, "23": 27, "0": 30, "1": 33, "2": 35, "3": 35, "default": 22},
+    "low_speed_share": 0.12,
+    "pickup_wait_min_by_hour": {"22": 5, "23": 10, "0": 10, "1": 7, "2": 5, "3": 5, "default": 5},
+    "min_taxi_m": 1000
+  },
+
+  "transit_seoul_card_adult": {
+    "status": "확인 필요 (2025-06 지하철 인상분 반영 값. 2026 하반기 300원 인상안이 시의회를 통과했다는 보도 있음)",
+    "subway": 1550,
+    "bus_trunk_branch": 1500,
+    "bus_village": 1200,
+    "bus_night": 2500,
+    "bus_express": 3000,
+    "base_distance_km": 10,
+    "extra_per_5km": 100,
+    "extra_until_km": 50,
+    "extra_per_8km_after": 100,
+    "rail_detour": 1.2,
+    "bus_detour": 1.3
+  },
+
+  "choice": {
+    "_comment": "조합 추천: 택시비 + 시간 가치 × 걸린 시간이 가장 작은 조합. 시간 가치는 사용자 설정으로 바꿀 수 있게 한다",
+    "value_won_per_min": 200,
+    "min_saving_won": 3000,
+    "min_saving_ratio": 0.2,
+    "_comment2": "조합은 택시 직행보다 min_saving_won원 또는 min_saving_ratio 비율 중 큰 만큼 싸고, 대중교통만보다 5분 이상 빠를 때만 보여준다"
+  }
+}

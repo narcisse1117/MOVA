@@ -53,13 +53,10 @@ def main():
     load_s = time.time() - t
     (o, oname), (d, dname), t0 = parse_place(a.src), parse_place(a.dst), parse_time(a.time)
     t = time.time()
-    res = raptor.query(net, o, d, t0)
+    res = raptor.plan(net, o, d, t0)
     q_s = time.time() - t
     print(f"{oname} → {dname}, {a.day} {network.fmt(t0)} 출발 (노선망 {load_s:.1f}초, 탐색 {q_s:.2f}초)")
-    if not res:
-        print("  대중교통으로 갈 수 없음")
-    for r in res:
-        print(raptor.describe(r, t0))
+    print(raptor.describe_plan(res))
 
 
 if __name__ == "__main__":
