@@ -89,4 +89,5 @@
 8. ~~택시 구간, 요금 규칙 설정 파일~~ 1차 완료 (2026-11-08): `config/fares.json`, `engine/fares.py`, `raptor.plan()`. 택시 직행 / 대중교통만 / 조합(마지막 구간 택시) 비교. 택시 요금은 공식 확인, 거리·시간은 직선거리 추정 → **Directions 5 키 나오면 교체**. 대중교통 기본요금은 확인 필요(300원 인상안). 처음 구간 택시(택시로 막차 남은 역까지)·양쪽 택시도 추가 (택시비 상한별 탐색)
 9. ~~출발 마감 시각~~ 1차 완료 (2026-11-08): `engine/deadline.py`, `cli.py --deadline`. 이분 탐색, 막차 기준 / 심야버스 포함 두 가지, 5분 여유
 10. ~~API 서버~~ 1차 완료 (2026-11-08, FastAPI — 프론트와 스택 확정 전 임시): `python -m uvicorn server.app:app --port 8000`, 문서 `/docs`. `POST /api/routes`, `POST /api/deadline`, `POST/GET /api/groups`, 멤버 추가. 응답 예시 `server/examples/*.json` → **프론트에 전달**. 서비스 이름은 `config/app.json`. 남은 것: 택시 묶기·정산·송금 링크, 실시간 첫 구간, 배포
-11. 기능명세서 갱신 (데이터 출처, 실시간 반영)
+11. ~~택시 묶기·정산·송금 링크~~ 1차 완료 (2026-11-08): `engine/groups.py`, `GET /api/groups/{id}?leave_at=`. 막차 끊긴 사람끼리 절약량 병합(4명, 20분 이내 우회), 내리는 곳 기준 구간 정산, `toss.me/아이디/금액` 링크(형식 실제 확인 필요)
+12. 기능명세서 갱신 (데이터 출처, 실시간 반영)

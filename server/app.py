@@ -16,7 +16,8 @@ import secrets
 import sqlite3
 import sys
 import threading
-from typing import List, Optional
+from typing import List, Optional  # noqa: F401
+from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,6 +26,7 @@ from pydantic import BaseModel, Field
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "engine"))
 import deadline as deadline_mod  # noqa: E402
+import groups as groups_mod  # noqa: E402
 import network  # noqa: E402
 import raptor  # noqa: E402
 
@@ -106,6 +108,8 @@ class GroupCreate(BaseModel):
 class MemberCreate(BaseModel):
     nickname: str = Field(..., max_length=20)
     home: Point
+    toss_id: Optional[str] = Field(None, max_length=40, pattern=r"^[A-Za-z0-9_.-]+$",
+                                   description="토스 아이디 (toss.me/아이디). 택시비를 낸 사람에게 송금 링크를 만든다")
 
 
 def leg_json(leg, day):
@@ -208,6 +212,9 @@ def db():
     con.execute("""create table if not exists members (
         id text primary key, group_id text, nickname text, home_lat real, home_lng real,
         home_label text, created_at text)""")
+    cols = {r[1] for r in con.execute("pragma table_info(members)")}
+    if "toss_id" not in cols:
+        con.execute("alter table members add column toss_id text")
     return con
 
 
@@ -231,17 +238,53 @@ def add_member(gid: str, req: MemberCreate):
     with db() as con:
         if not con.execute("select 1 from groups where id=?", (gid,)).fetchone():
             raise HTTPException(404, "모임이 없습니다")
-        con.execute("insert into members values (?,?,?,?,?,?,?)",
-                    (mid, gid, req.nickname, req.home.lat, req.home.lng, req.home.label, now_iso()))
+        con.execute("insert into members (id, group_id, nickname, home_lat, home_lng, home_label, created_at, toss_id) "
+                    "values (?,?,?,?,?,?,?,?)",
+                    (mid, gid, req.nickname, req.home.lat, req.home.lng, req.home.label, now_iso(), req.toss_id))
     return {"id": mid}
 
 
 _deadline_cache = {}
 
 
+def toss_link(toss_id, amount):
+    return f"https://toss.me/{quote(toss_id)}/{int(amount)}" if toss_id else None
+
+
+def taxi_groups_json(g, members, deadlines, leave_at):
+    """leave_at에 지하철·일반버스 막차가 끊긴 사람끼리 택시를 묶고 정산한다."""
+    day, t_leave, _ = service_day(leave_at)
+    need = [m for m in members
+            if deadlines[m["id"]]["regular"] is None
+            or deadlines[m["id"]]["regular"]["leave_by"] < to_iso(day, t_leave)]
+    if not need:
+        return [], []
+    taxis = groups_mod.plan_taxis((g["meet_lat"], g["meet_lng"]),
+                                  [(m["home_lat"], m["home_lng"]) for m in need], t_leave)
+    out, transfers = [], []
+    for x in taxis:
+        payer = need[x["payer"]]
+        riders = []
+        for st in x["stops"]:
+            m = need[st["member"]]
+            share = x["shares"][st["member"]]
+            riders.append({"member_id": m["id"], "nickname": m["nickname"], "arrival": to_iso(day, st["arrive"]),
+                           "meter_at_dropoff": st["meter"], "share": share,
+                           "solo_fare": x["solo_fares"][st["member"]],
+                           "saving": x["solo_fares"][st["member"]] - share})
+            if m["id"] != payer["id"]:
+                transfers.append({"from_member_id": m["id"], "from": m["nickname"],
+                                  "to_member_id": payer["id"], "to": payer["nickname"], "amount": share,
+                                  "toss_link": toss_link(payer["toss_id"], share)})
+        out.append({"riders": riders, "total_fare": x["total_fare"], "payer_member_id": payer["id"],
+                    "payer": payer["nickname"], "estimated": True})
+    return out, transfers
+
+
 @app.get("/api/groups/{gid}")
-def get_group(gid: str):
-    """모임 정보 + 사람별 출발 마감 (모임 장소 → 각자 집). 택시 묶기·정산은 아직."""
+def get_group(gid: str, leave_at: Optional[dt.datetime] = None):
+    """모임 정보 + 사람별 출발 마감 (모임 장소 → 각자 집).
+    leave_at(모임이 끝나는 시각)을 주면, 그때 지하철·일반버스 막차가 끊긴 사람끼리 택시를 묶고 정산한다."""
     with db() as con:
         g = con.execute("select * from groups where id=?", (gid,)).fetchone()
         if not g:
@@ -251,17 +294,23 @@ def get_group(gid: str):
     start = dt.datetime.combine(dt.date.fromisoformat(g["date"]), dt.time(h, m), tzinfo=KST)
     day, t0, dtype = service_day(start)
     net = get_net(dtype)
-    out = []
+    out, dls = [], {}
     for mb in members:
         key = (g["id"], mb["id"], dtype, id(net))
         if key not in _deadline_cache:
             d = deadline_mod.deadlines(net, (g["meet_lat"], g["meet_lng"]), (mb["home_lat"], mb["home_lng"]), t0)
             _deadline_cache[key] = deadline_json(d, day)
+        dls[mb["id"]] = _deadline_cache[key]
         out.append({"id": mb["id"], "nickname": mb["nickname"],
                     "home": {"lat": mb["home_lat"], "lng": mb["home_lng"], "label": mb["home_label"]},
                     "deadline": _deadline_cache[key]})
     out.sort(key=lambda x: (x["deadline"]["regular"] or {}).get("leave_by") or "9999")
+    taxi_groups = transfers = None
+    if leave_at is not None:
+        taxi_groups, transfers = taxi_groups_json(g, members, dls, leave_at)
     return {"id": g["id"], "name": g["name"], "date": g["date"], "day_type": dtype,
             "meeting_place": {"lat": g["meet_lat"], "lng": g["meet_lng"], "label": g["meet_label"]},
-            "members": out, "taxi_groups": None, "settlement": None,
-            "notes": ["taxi_groups(같은 방향 택시 묶기)와 settlement(정산)는 아직 없습니다"]}
+            "members": out, "leave_at": leave_at.isoformat() if leave_at else None,
+            "taxi_groups": taxi_groups, "settlement": transfers,
+            "notes": ["leave_at을 주면 그때 막차(지하철·일반버스)가 끊긴 사람끼리 택시를 묶습니다",
+                      "택시 요금은 직선거리 기반 추정이고, 정산은 내리는 곳 기준(구간 요금을 그 구간 탑승자끼리 나눔)입니다"]}

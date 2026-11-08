@@ -10,13 +10,17 @@
       "date": "2026-12-18"
     },
     "members": [
-      "민수(노원)",
-      "지영(신림)",
-      "현우(홍대)"
-    ]
+      "민수(노원역)",
+      "수진(도봉구)",
+      "철수(수유역)",
+      "지영(신림역)",
+      "영희(봉천동)",
+      "현우(홍대입구역)"
+    ],
+    "query": "GET /api/groups/{id}?leave_at=2026-12-19T01:00"
   },
   "response": {
-    "id": "gWAH7pvf",
+    "id": "0rEYZG6y",
     "name": "송년회",
     "date": "2026-12-18",
     "day_type": "WD",
@@ -27,7 +31,7 @@
     },
     "members": [
       {
-        "id": "S_wy_Jxk",
+        "id": "2Z22UI--",
         "nickname": "지영",
         "home": {
           "lat": 37.484201,
@@ -125,7 +129,105 @@
         }
       },
       {
-        "id": "MCXbRSyD",
+        "id": "WBjIAK_N",
+        "nickname": "영희",
+        "home": {
+          "lat": 37.4825,
+          "lng": 126.9417,
+          "label": "봉천동"
+        },
+        "deadline": {
+          "regular": {
+            "leave_by": "2026-12-19T00:25:00+09:00",
+            "latest": "2026-12-19T00:30:00+09:00",
+            "all_night": false,
+            "route": {
+              "kind": "transit",
+              "arrival": "2026-12-19T00:51:12+09:00",
+              "duration_min": 21,
+              "fare": 1550,
+              "rides": 1,
+              "fare_detail": {
+                "transit": 1550,
+                "taxi": 0
+              },
+              "recommended": false,
+              "combo_kind": null,
+              "legs": [
+                {
+                  "type": "walk",
+                  "from": "출발지",
+                  "to": "강남",
+                  "duration_sec": 157
+                },
+                {
+                  "type": "subway",
+                  "from": "강남",
+                  "to": "봉천",
+                  "line": "2호선",
+                  "trip": "2516 신도림행",
+                  "departure": "2026-12-19T00:33:00+09:00",
+                  "arrival": "2026-12-19T00:49:00+09:00",
+                  "stops": 7,
+                  "distance_m": 9360
+                },
+                {
+                  "type": "walk",
+                  "from": "봉천",
+                  "to": "도착지",
+                  "duration_sec": 132
+                }
+              ]
+            }
+          },
+          "night": {
+            "leave_by": "2026-12-19T03:55:00+09:00",
+            "latest": "2026-12-19T04:00:00+09:00",
+            "all_night": true,
+            "route": {
+              "kind": "transit",
+              "arrival": "2026-12-19T04:38:07+09:00",
+              "duration_min": 38,
+              "fare": 2600,
+              "rides": 1,
+              "fare_detail": {
+                "transit": 2600,
+                "taxi": 0
+              },
+              "recommended": false,
+              "combo_kind": null,
+              "legs": [
+                {
+                  "type": "walk",
+                  "from": "출발지",
+                  "to": "강남역12번출구",
+                  "duration_sec": 232
+                },
+                {
+                  "type": "bus",
+                  "from": "강남역12번출구",
+                  "to": "봉천역.관악초등학교",
+                  "line": "N61",
+                  "trip": "기점 24:30 출발",
+                  "departure": "2026-12-19T04:04:17+09:00",
+                  "arrival": "2026-12-19T04:35:35+09:00",
+                  "stops": 23,
+                  "headway_min": 20.0,
+                  "distance_m": 10181
+                },
+                {
+                  "type": "walk",
+                  "from": "봉천역.관악초등학교",
+                  "to": "도착지",
+                  "duration_sec": 152
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "JyoG4VYn",
         "nickname": "민수",
         "home": {
           "lat": 37.655128,
@@ -260,7 +362,265 @@
         }
       },
       {
-        "id": "GWDLP8iY",
+        "id": "wS4CN6uA",
+        "nickname": "수진",
+        "home": {
+          "lat": 37.668,
+          "lng": 127.044,
+          "label": "도봉구"
+        },
+        "deadline": {
+          "regular": {
+            "leave_by": "2026-12-19T00:39:45+09:00",
+            "latest": "2026-12-19T00:44:45+09:00",
+            "all_night": false,
+            "route": {
+              "kind": "transit",
+              "arrival": "2026-12-19T02:02:30+09:00",
+              "duration_min": 77,
+              "fare": 1900,
+              "rides": 2,
+              "fare_detail": {
+                "transit": 1900,
+                "taxi": 0
+              },
+              "recommended": false,
+              "combo_kind": null,
+              "legs": [
+                {
+                  "type": "walk",
+                  "from": "출발지",
+                  "to": "지하철2호선강남역",
+                  "duration_sec": 395
+                },
+                {
+                  "type": "bus",
+                  "from": "지하철2호선강남역",
+                  "to": "종로2가사거리",
+                  "line": "741",
+                  "trip": "기점 22:50 출발",
+                  "departure": "2026-12-19T00:52:02+09:00",
+                  "arrival": "2026-12-19T01:09:58+09:00",
+                  "stops": 7,
+                  "headway_min": 10.0,
+                  "distance_m": 10914
+                },
+                {
+                  "type": "walk",
+                  "from": "종로2가사거리",
+                  "to": "종로3가역.탑골공원",
+                  "duration_sec": 173
+                },
+                {
+                  "type": "bus",
+                  "from": "종로3가역.탑골공원",
+                  "to": "신도봉시장.도봉구청.방학역북부",
+                  "line": "150",
+                  "trip": "기점 22:00 출발",
+                  "departure": "2026-12-19T01:14:27+09:00",
+                  "arrival": "2026-12-19T01:59:50+09:00",
+                  "stops": 24,
+                  "headway_min": 8.0,
+                  "distance_m": 15609
+                },
+                {
+                  "type": "walk",
+                  "from": "신도봉시장.도봉구청.방학역북부",
+                  "to": "도착지",
+                  "duration_sec": 160
+                }
+              ]
+            }
+          },
+          "night": {
+            "leave_by": "2026-12-19T03:55:00+09:00",
+            "latest": "2026-12-19T04:00:00+09:00",
+            "all_night": true,
+            "route": {
+              "kind": "transit",
+              "arrival": "2026-12-19T05:18:07+09:00",
+              "duration_min": 78,
+              "fare": 2900,
+              "rides": 2,
+              "fare_detail": {
+                "transit": 2900,
+                "taxi": 0
+              },
+              "recommended": false,
+              "combo_kind": null,
+              "legs": [
+                {
+                  "type": "walk",
+                  "from": "출발지",
+                  "to": "강남역12번출구",
+                  "duration_sec": 232
+                },
+                {
+                  "type": "bus",
+                  "from": "강남역12번출구",
+                  "to": "동대문역사문화공원역9번출구",
+                  "line": "N13",
+                  "trip": "기점 25:10 출발",
+                  "departure": "2026-12-19T04:06:04+09:00",
+                  "arrival": "2026-12-19T04:25:18+09:00",
+                  "stops": 13,
+                  "headway_min": 25.0,
+                  "distance_m": 9913
+                },
+                {
+                  "type": "bus",
+                  "from": "동대문역사문화공원역9번출구",
+                  "to": "신도봉시장.도봉구청.방학역북부",
+                  "line": "N16",
+                  "trip": "기점 25:15 출발",
+                  "departure": "2026-12-19T04:33:14+09:00",
+                  "arrival": "2026-12-19T05:15:27+09:00",
+                  "stops": 23,
+                  "headway_min": 25.0,
+                  "distance_m": 15593
+                },
+                {
+                  "type": "walk",
+                  "from": "신도봉시장.도봉구청.방학역북부",
+                  "to": "도착지",
+                  "duration_sec": 160
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "EyJ-69aP",
+        "nickname": "철수",
+        "home": {
+          "lat": 37.638052,
+          "lng": 127.025732,
+          "label": "수유역"
+        },
+        "deadline": {
+          "regular": {
+            "leave_by": "2026-12-19T00:39:45+09:00",
+            "latest": "2026-12-19T00:44:45+09:00",
+            "all_night": false,
+            "route": {
+              "kind": "transit",
+              "arrival": "2026-12-19T01:48:43+09:00",
+              "duration_min": 63,
+              "fare": 1800,
+              "rides": 2,
+              "fare_detail": {
+                "transit": 1800,
+                "taxi": 0
+              },
+              "recommended": false,
+              "combo_kind": null,
+              "legs": [
+                {
+                  "type": "walk",
+                  "from": "출발지",
+                  "to": "지하철2호선강남역",
+                  "duration_sec": 395
+                },
+                {
+                  "type": "bus",
+                  "from": "지하철2호선강남역",
+                  "to": "종로2가사거리",
+                  "line": "741",
+                  "trip": "기점 22:50 출발",
+                  "departure": "2026-12-19T00:52:02+09:00",
+                  "arrival": "2026-12-19T01:09:58+09:00",
+                  "stops": 7,
+                  "headway_min": 10.0,
+                  "distance_m": 10914
+                },
+                {
+                  "type": "walk",
+                  "from": "종로2가사거리",
+                  "to": "종로3가역.탑골공원",
+                  "duration_sec": 173
+                },
+                {
+                  "type": "bus",
+                  "from": "종로3가역.탑골공원",
+                  "to": "수유역.강북구청",
+                  "line": "150",
+                  "trip": "기점 22:00 출발",
+                  "departure": "2026-12-19T01:14:27+09:00",
+                  "arrival": "2026-12-19T01:47:28+09:00",
+                  "stops": 17,
+                  "headway_min": 8.0,
+                  "distance_m": 10577
+                },
+                {
+                  "type": "walk",
+                  "from": "수유역.강북구청",
+                  "to": "도착지",
+                  "duration_sec": 75
+                }
+              ]
+            }
+          },
+          "night": {
+            "leave_by": "2026-12-19T03:55:00+09:00",
+            "latest": "2026-12-19T04:00:00+09:00",
+            "all_night": true,
+            "route": {
+              "kind": "transit",
+              "arrival": "2026-12-19T05:05:57+09:00",
+              "duration_min": 65,
+              "fare": 2800,
+              "rides": 2,
+              "fare_detail": {
+                "transit": 2800,
+                "taxi": 0
+              },
+              "recommended": false,
+              "combo_kind": null,
+              "legs": [
+                {
+                  "type": "walk",
+                  "from": "출발지",
+                  "to": "강남역12번출구",
+                  "duration_sec": 232
+                },
+                {
+                  "type": "bus",
+                  "from": "강남역12번출구",
+                  "to": "동대문역사문화공원역9번출구",
+                  "line": "N13",
+                  "trip": "기점 25:10 출발",
+                  "departure": "2026-12-19T04:06:04+09:00",
+                  "arrival": "2026-12-19T04:25:18+09:00",
+                  "stops": 13,
+                  "headway_min": 25.0,
+                  "distance_m": 9913
+                },
+                {
+                  "type": "bus",
+                  "from": "동대문역사문화공원역9번출구",
+                  "to": "수유역.강북구청",
+                  "line": "N16",
+                  "trip": "기점 25:15 출발",
+                  "departure": "2026-12-19T04:33:14+09:00",
+                  "arrival": "2026-12-19T05:04:42+09:00",
+                  "stops": 16,
+                  "headway_min": 25.0,
+                  "distance_m": 10660
+                },
+                {
+                  "type": "walk",
+                  "from": "수유역.강북구청",
+                  "to": "도착지",
+                  "duration_sec": 75
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "Lbk1zzhl",
         "nickname": "현우",
         "home": {
           "lat": 37.557192,
@@ -389,10 +749,116 @@
         }
       }
     ],
-    "taxi_groups": null,
-    "settlement": null,
+    "leave_at": "2026-12-19T01:00:00",
+    "taxi_groups": [
+      {
+        "riders": [
+          {
+            "member_id": "EyJ-69aP",
+            "nickname": "철수",
+            "arrival": "2026-12-19T01:45:14+09:00",
+            "meter_at_dropoff": 28000,
+            "share": 9330,
+            "solo_fare": 28000,
+            "saving": 18670
+          },
+          {
+            "member_id": "JyoG4VYn",
+            "nickname": "민수",
+            "arrival": "2026-12-19T01:55:15+09:00",
+            "meter_at_dropoff": 33400,
+            "share": 12030,
+            "solo_fare": 31200,
+            "saving": 19170
+          },
+          {
+            "member_id": "wS4CN6uA",
+            "nickname": "수진",
+            "arrival": "2026-12-19T02:01:23+09:00",
+            "meter_at_dropoff": 36500,
+            "share": 15140,
+            "solo_fare": 33000,
+            "saving": 17860
+          }
+        ],
+        "total_fare": 36500,
+        "payer_member_id": "wS4CN6uA",
+        "payer": "수진",
+        "estimated": true
+      },
+      {
+        "riders": [
+          {
+            "member_id": "WBjIAK_N",
+            "nickname": "영희",
+            "arrival": "2026-12-19T01:26:03+09:00",
+            "meter_at_dropoff": 16400,
+            "share": 5470,
+            "solo_fare": 16400,
+            "saving": 10930
+          },
+          {
+            "member_id": "2Z22UI--",
+            "nickname": "지영",
+            "arrival": "2026-12-19T01:29:41+09:00",
+            "meter_at_dropoff": 18000,
+            "share": 6270,
+            "solo_fare": 17900,
+            "saving": 11630
+          },
+          {
+            "member_id": "Lbk1zzhl",
+            "nickname": "현우",
+            "arrival": "2026-12-19T01:50:38+09:00",
+            "meter_at_dropoff": 29900,
+            "share": 18160,
+            "solo_fare": 21400,
+            "saving": 3240
+          }
+        ],
+        "total_fare": 29900,
+        "payer_member_id": "Lbk1zzhl",
+        "payer": "현우",
+        "estimated": true
+      }
+    ],
+    "settlement": [
+      {
+        "from_member_id": "EyJ-69aP",
+        "from": "철수",
+        "to_member_id": "wS4CN6uA",
+        "to": "수진",
+        "amount": 9330,
+        "toss_link": "https://toss.me/sujin_toss/9330"
+      },
+      {
+        "from_member_id": "JyoG4VYn",
+        "from": "민수",
+        "to_member_id": "wS4CN6uA",
+        "to": "수진",
+        "amount": 12030,
+        "toss_link": "https://toss.me/sujin_toss/12030"
+      },
+      {
+        "from_member_id": "WBjIAK_N",
+        "from": "영희",
+        "to_member_id": "Lbk1zzhl",
+        "to": "현우",
+        "amount": 5470,
+        "toss_link": "https://toss.me/hyunwoo_toss/5470"
+      },
+      {
+        "from_member_id": "2Z22UI--",
+        "from": "지영",
+        "to_member_id": "Lbk1zzhl",
+        "to": "현우",
+        "amount": 6270,
+        "toss_link": "https://toss.me/hyunwoo_toss/6270"
+      }
+    ],
     "notes": [
-      "taxi_groups(같은 방향 택시 묶기)와 settlement(정산)는 아직 없습니다"
+      "leave_at을 주면 그때 막차(지하철·일반버스)가 끊긴 사람끼리 택시를 묶습니다",
+      "택시 요금은 직선거리 기반 추정이고, 정산은 내리는 곳 기준(구간 요금을 그 구간 탑승자끼리 나눔)입니다"
     ]
   }
 }

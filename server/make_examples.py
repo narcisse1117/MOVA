@@ -17,6 +17,8 @@ NOWON = {"lat": 37.655128, "lng": 127.061368, "label": "노원역"}
 GANGNAM = {"lat": 37.497952, "lng": 127.027619, "label": "강남역"}
 SINLIM = {"lat": 37.484201, "lng": 126.929715, "label": "신림역"}
 SUYU = {"lat": 37.638052, "lng": 127.025732, "label": "수유역"}
+DOBONG = {"lat": 37.668, "lng": 127.044, "label": "도봉구"}
+BONGCHEON = {"lat": 37.4825, "lng": 126.9417, "label": "봉천동"}
 
 
 def save(name, req, res):
@@ -40,11 +42,17 @@ def main():
 
     req = {"name": "송년회", "meeting_place": GANGNAM, "date": "2026-12-18"}
     g = c.post("/api/groups", json=req).json()
-    for nick, home in (("민수", NOWON), ("지영", SINLIM), ("현우", HONGDAE)):
-        c.post(f"/api/groups/{g['id']}/members", json={"nickname": nick, "home": home}).raise_for_status()
-    r = c.get(f"/api/groups/{g['id']}")
+    people = (("민수", NOWON, None), ("수진", DOBONG, "sujin_toss"), ("철수", SUYU, None),
+              ("지영", SINLIM, None), ("영희", BONGCHEON, None), ("현우", HONGDAE, "hyunwoo_toss"))
+    for nick, home, toss in people:
+        body = {"nickname": nick, "home": home}
+        if toss:
+            body["toss_id"] = toss
+        c.post(f"/api/groups/{g['id']}/members", json=body).raise_for_status()
+    r = c.get(f"/api/groups/{g['id']}", params={"leave_at": "2026-12-19T01:00"})
     r.raise_for_status()
-    save("group_get.json", {"create": req, "members": ["민수(노원)", "지영(신림)", "현우(홍대)"]}, r.json())
+    save("group_get.json", {"create": req, "members": [f"{n}({h['label']})" for n, h, _ in people],
+                            "query": "GET /api/groups/{id}?leave_at=2026-12-19T01:00"}, r.json())
     print("db:", DB_PATH)
 
 
