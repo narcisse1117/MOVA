@@ -294,6 +294,8 @@ def main():
     st["lon"] = pd.to_numeric(st.lon, errors="coerce")
     st["has_coord"] = st.lat.notna().astype(int)
     st["in_seoul_id"] = st.stop_id.str[0].eq("1").astype(int)
+    # 가상정류장은 도로 위 측정 지점이라 타고 내릴 수 없다. 엔진은 이 정류장을 건너뛰고 시간만 더한다
+    st["is_virtual"] = st.kind.eq("가상정류장").astype(int)
 
     # 구간 운행시간
     sec, sec_files, dates = load_sections(set(routes.route_id))

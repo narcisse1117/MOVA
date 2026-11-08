@@ -9,3 +9,5 @@ prep/out/
 *.pdf
 # Python 캐시
 __pycache__/
+# 엔진 노선망 캐시
+engine/cache/

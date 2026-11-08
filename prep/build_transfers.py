@@ -62,7 +62,7 @@ def main():
     rail = st[["place_id", "name", "lat", "lng"]].rename(columns={"lng": "lon"}).reset_index(drop=True)
 
     bus = pd.read_csv(os.path.join(OUT, "bus_stops.csv"), dtype={"stop_id": str, "ars_no": str})
-    bus = bus[bus.has_coord == 1].reset_index(drop=True)
+    bus = bus[(bus.has_coord == 1) & (bus.is_virtual == 0)].reset_index(drop=True)
 
     rxy, bxy = to_xy(rail.lat, rail.lon), to_xy(bus.lat, bus.lon)
     rtree, btree = cKDTree(rxy), cKDTree(bxy)
