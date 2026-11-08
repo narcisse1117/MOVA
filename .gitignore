@@ -1,0 +1,11 @@
+# 인증키
+데이터/seoul_key.txt
+*key*.txt
+# 원본·생성 데이터 (용량 큼, README의 출처에서 받는다)
+데이터/
+prep/out/
+*.png
+# 기획안 PDF (Claude Docs에 최신본)
+*.pdf
+# Python 캐시
+__pycache__/
