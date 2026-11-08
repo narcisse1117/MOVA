@@ -27,6 +27,7 @@ def no_external_api(monkeypatch):
     monkeypatch.setattr(naver, "reverse", lambda *a, **k: None)
     monkeypatch.setattr(naver, "local_search", lambda *a, **k: [])
     monkeypatch.setattr(realtime, "arrivals", lambda *a, **k: None)
+    monkeypatch.setattr(realtime, "subway_arrivals", lambda *a, **k: None)
 
 
 @pytest.fixture(scope="session")
