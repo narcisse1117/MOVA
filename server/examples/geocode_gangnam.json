@@ -1,0 +1,16 @@
+{
+  "request": "GET /api/geocode?q=강남역",
+  "response": {
+    "query": "강남역",
+    "results": [
+      {
+        "kind": "station",
+        "label": "강남역",
+        "address": "2호선, 신분당선",
+        "lat": 37.497718,
+        "lng": 127.027914
+      }
+    ],
+    "notes": []
+  }
+}

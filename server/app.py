@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "engine"))
 import deadline as deadline_mod  # noqa: E402
+import naver  # noqa: E402
 import groups as groups_mod  # noqa: E402
 import network  # noqa: E402
 import raptor  # noqa: E402
@@ -166,6 +167,64 @@ def health():
 @app.get("/api/config")
 def config():
     return {"service_name": APP_CFG["service_name"], "region": APP_CFG["region"]}
+
+
+_stations = None
+
+
+def stations():
+    """역 이름 검색용 (place마다 하나, 좌표는 노선별 점의 평균)."""
+    global _stations
+    if _stations is None:
+        import pandas as pd
+        st = pd.read_csv(os.path.join(ROOT, "prep", "out", "stations.csv"), dtype={"place_id": str})
+        st = st[~st.coord_suspect.astype(bool)]
+        st = st.groupby("place_id").agg(name=("name", "first"), lat=("lat", "mean"), lng=("lng", "mean"),
+                                        lines=("line", lambda x: sorted(set(x)))).reset_index()
+        st["key"] = st.name.str.replace(r"\(.*\)", "", regex=True).str.replace("역", "").str.strip()
+        _stations = st
+    return _stations
+
+
+SEOUL_BOX = (37.4, 37.72, 126.75, 127.2)
+
+
+def in_seoul(lat, lng):
+    return SEOUL_BOX[0] <= lat <= SEOUL_BOX[1] and SEOUL_BOX[2] <= lng <= SEOUL_BOX[3]
+
+
+@app.get("/api/geocode")
+def geocode(q: str):
+    """검색어 → 후보. 역 이름은 우리 역 목록에서, 그 밖은 네이버 주소 검색(장소 이름은 못 찾음). 서울 범위만."""
+    q = q.strip()
+    if not q:
+        return {"query": q, "results": []}
+    out = []
+    key = q.replace("역", "").strip()
+    st = stations()
+    m = st[st.key == key]
+    if m.empty and len(key) >= 2:
+        m = st[st.key.str.startswith(key)].head(5)
+    for r in m.itertuples():
+        if in_seoul(r.lat, r.lng):
+            out.append({"kind": "station", "label": f"{r.name}역" if not r.name.endswith("역") else r.name,
+                        "address": ", ".join(l.replace("서울 도시철도 ", "") for l in r.lines),
+                        "lat": round(r.lat, 6), "lng": round(r.lng, 6)})
+    for a in naver.geocode(q):
+        if in_seoul(a["lat"], a["lng"]):
+            out.append({"kind": "address", "label": a["address"], "address": a["jibun"],
+                        "lat": a["lat"], "lng": a["lng"]})
+    return {"query": q, "results": out[:10],
+            "notes": [] if out else ["역 이름이나 도로명·지번 주소로 검색해 주세요 (가게·건물 이름 검색은 아직 없음)"]}
+
+
+@app.get("/api/reverse")
+def reverse(lat: float, lng: float):
+    """좌표 → 표시 이름 (예: 노원구 상계동)."""
+    r = naver.reverse(lat, lng)
+    if r is None:
+        return {"label": None}
+    return {"label": f"{r['gu']} {r['dong']}", **r}
 
 
 @app.post("/api/routes")

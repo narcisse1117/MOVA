@@ -22,6 +22,8 @@ ROOT = os.path.dirname(ENGINE)
 KEY_PATH = os.path.join(ROOT, "데이터", "naver_key.txt")
 DB_PATH = os.path.join(ENGINE, "cache", "naver.sqlite")
 URL = "https://maps.apigw.ntruss.com/map-direction/v1/driving"
+GEOCODE_URL = "https://maps.apigw.ntruss.com/map-geocode/v2/geocode"
+REVERSE_URL = "https://maps.apigw.ntruss.com/map-reversegeocode/v2/gc"
 with open(os.path.join(ROOT, "config", "fares.json"), encoding="utf-8") as _f:
     CFG = json.load(_f).get("naver", {})
 MONTHLY_LIMIT = CFG.get("monthly_limit", 55000)
@@ -51,6 +53,7 @@ def _db():
     con.execute("create table if not exists routes (k text primary key, dist_m integer, duration_sec integer, "
                 "legs text, fetched_at text)")
     con.execute("create table if not exists usage (month text primary key, calls integer)")
+    con.execute("create table if not exists geo (k text primary key, v text, fetched_at text)")
     return con
 
 
@@ -105,3 +108,60 @@ def route(points, need_fresh_duration=False):
         con.execute("insert or replace into routes values (?,?,?,?,?)",
                     (k, total_d, total_t, json.dumps(legs), now.isoformat(timespec="seconds")))
     return {"dist_m": total_d, "duration_sec": total_t, "legs": legs, "fresh": True, "cached": False}
+
+
+def _get_json(url, params):
+    cid, sec = _load_key()
+    req = urllib.request.Request(f"{url}?{urllib.parse.urlencode(params)}",
+                                 headers={"x-ncp-apigw-api-key-id": cid, "x-ncp-apigw-api-key": sec,
+                                          "Accept": "application/json"})
+    try:
+        return json.loads(urllib.request.urlopen(req, timeout=8).read())
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
+        return None
+
+
+def _geo_cached(k, fetch):
+    with _lock, _db() as con:
+        row = con.execute("select v from geo where k=?", (k,)).fetchone()
+    if row:
+        return json.loads(row[0])
+    v = fetch()
+    if v is not None:
+        with _lock, _db() as con:
+            con.execute("insert or replace into geo values (?,?,?)",
+                        (k, json.dumps(v, ensure_ascii=False), dt.datetime.now().isoformat(timespec="seconds")))
+    return v
+
+
+def geocode(query):
+    """주소 → [{address, jibun, lat, lng}] (장소 이름은 못 찾는다). 무료 월 300만 건."""
+    if not available() or not query.strip():
+        return []
+
+    def fetch():
+        j = _get_json(GEOCODE_URL, {"query": query})
+        if j is None or j.get("status") != "OK":
+            return None
+        return [{"address": a.get("roadAddress") or a.get("jibunAddress"), "jibun": a.get("jibunAddress"),
+                 "lat": float(a["y"]), "lng": float(a["x"])} for a in j.get("addresses", [])]
+    return _geo_cached("g:" + query.strip(), fetch) or []
+
+
+def reverse(lat, lng):
+    """좌표 → {gu, dong, road} (예: 노원구, 상계동). 무료 월 300만 건."""
+    if not available():
+        return None
+
+    def fetch():
+        j = _get_json(REVERSE_URL, {"coords": f"{lng},{lat}", "output": "json", "orders": "roadaddr,admcode"})
+        if j is None or not j.get("results"):
+            return None
+        reg = j["results"][0]["region"]
+        road = None
+        for r in j["results"]:
+            if r.get("name") == "roadaddr" and r.get("land"):
+                land = r["land"]
+                road = f"{land.get('name', '')} {land.get('number1', '')}".strip()
+        return {"si": reg["area1"]["name"], "gu": reg["area2"]["name"], "dong": reg["area3"]["name"], "road": road}
+    return _geo_cached(f"r:{lat:.4f},{lng:.4f}", fetch)
