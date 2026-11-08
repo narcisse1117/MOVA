@@ -11,3 +11,5 @@ prep/out/
 __pycache__/
 # 엔진 노선망 캐시
 engine/cache/
+# API 서버 DB
+server/data/

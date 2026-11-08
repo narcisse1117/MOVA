@@ -80,7 +80,7 @@
 1. **키 신청:** 네이버 클라우드 Directions 5, 공공데이터포털 TAGO 지하철정보(1호선 경인 구간 대조용)
 2. ~~GitHub 레포 생성~~ 완료: https://github.com/narcisse1117/MOVA (비공개, main 브랜치)
 3. **기술 스택 결정** (프론트 담당과)
-4. 프론트와 API 응답 형식 확정 (`POST /api/routes`, `GET /api/groups/:id`), 가짜 데이터 JSON 전달
+4. 프론트와 API 응답 형식 확정 — 초안과 실제 예시 JSON은 `server/README.md`, `server/examples/` (2026-11-08)
 5. ~~버스 정리 스크립트~~ 완료 (2026-11-08): `python prep/parse_bus.py` → `prep/out/bus_*.csv`. 공식 운행시간 대비 구간 합계 중앙값 94%. 막차 시각은 네이버 대조 전
 6. ~~환승 도보 연결~~ 완료 (2026-11-08): `python prep/build_transfers.py` → `prep/out/transfers.csv` (역↔정류장, 정류장↔정류장, 이름이 다른 역끼리)
 7. ~~RAPTOR 첫 버전 (지하철+버스)~~ 완료 (2026-11-08): `python engine/cli.py --from 홍대입구 --to "잠실(송파구청)" --time 23:30`. 버스는 막차에서 배차만큼 거슬러 만든 가상 운행. 2호선 성수 이어 붙임, 가상정류장 제외. 자세한 건 `engine/README.md`. **남은 것: 네이버 길찾기 대조, 출발 마감 시각(역방향) 계산, 버스 도착 범위**
@@ -88,5 +88,5 @@
    - "버스 운행 출발시간" 파일데이터는 2024-08-26 하루, 노선 6개, 100행짜리 샘플이라 못 씀
 8. ~~택시 구간, 요금 규칙 설정 파일~~ 1차 완료 (2026-11-08): `config/fares.json`, `engine/fares.py`, `raptor.plan()`. 택시 직행 / 대중교통만 / 조합(마지막 구간 택시) 비교. 택시 요금은 공식 확인, 거리·시간은 직선거리 추정 → **Directions 5 키 나오면 교체**. 대중교통 기본요금은 확인 필요(300원 인상안). 처음 구간 택시는 아직
 9. ~~출발 마감 시각~~ 1차 완료 (2026-11-08): `engine/deadline.py`, `cli.py --deadline`. 이분 탐색, 막차 기준 / 심야버스 포함 두 가지, 5분 여유
-10. **API 서버** (`POST /api/routes`, `GET /api/groups/:id`) — 기술 스택 결정 후. Python 엔진이라 FastAPI 추천
+10. ~~API 서버~~ 1차 완료 (2026-11-08, FastAPI — 프론트와 스택 확정 전 임시): `python -m uvicorn server.app:app --port 8000`, 문서 `/docs`. `POST /api/routes`, `POST /api/deadline`, `POST/GET /api/groups`, 멤버 추가. 응답 예시 `server/examples/*.json` → **프론트에 전달**. 서비스 이름은 `config/app.json`. 남은 것: 택시 묶기·정산·송금 링크, 실시간 첫 구간, 배포
 11. 기능명세서 갱신 (데이터 출처, 실시간 반영)
