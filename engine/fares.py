@@ -60,12 +60,15 @@ def taxi_trip(straight_m, start_sec):
     return out
 
 
-def bus_base(name):
+def bus_base(name, route_type=None):
+    """노선 유형(서울시 데이터의 간선·지선·순환·마을·광역)으로 기본요금. 유형이 없으면 번호로 추정."""
     if name.startswith("N"):
         return TRANSIT["bus_night"]
-    if any("가" <= c <= "힣" for c in name):      # 마포05처럼 한글이 들어간 번호 = 마을버스
+    if route_type == "순환":
+        return TRANSIT["bus_circular"]
+    if route_type == "마을" or (route_type is None and any("가" <= c <= "힣" for c in name)):
         return TRANSIT["bus_village"]
-    if len(name) == 4 and name.startswith("9"):
+    if route_type == "광역" or (route_type is None and len(name) == 4 and name.startswith("9")):
         return TRANSIT["bus_express"]
     return TRANSIT["bus_trunk_branch"]
 
@@ -75,7 +78,7 @@ def transit_fare(legs):
     rides = [l for l in legs if l["type"] in ("rail", "bus")]
     if not rides:
         return 0
-    base = max(TRANSIT["subway"] if l["type"] == "rail" else bus_base(l["line"]) for l in rides)
+    base = max(TRANSIT["subway"] if l["type"] == "rail" else bus_base(l["line"], l.get("route_type")) for l in rides)
     km = sum(l.get("dist_m", 0) for l in rides) / 1000
     extra = 0
     if km > TRANSIT["base_distance_km"]:

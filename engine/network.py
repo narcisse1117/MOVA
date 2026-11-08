@@ -25,12 +25,13 @@ ENGINE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(ENGINE)
 PREP_OUT = os.path.join(ROOT, "prep", "out")
 CACHE = os.path.join(ENGINE, "cache")
-CACHE_VERSION = 10
+CACHE_VERSION = 11
 DATA = os.path.join(ROOT, "데이터")
 OFFICIAL_BLEND_SEC = 7200
 OUTLIER_SEC = 1800
 SHORT_TURN_SLACK = 180     # 공식 막차보다 이만큼 늦게 지나는 운행은 없는 것으로 본다
 INF32 = 2 ** 31 - 1
+EXCLUDED_BUS_TYPES = {"공항", "관광"}
 BUS_BOARD_SLACK_RATIO = 0.5   # 버스 가상 운행은 실제와 배차 간격만큼 어긋날 수 있어, 평균 대기(절반)만큼 일찍 와 있어야 탄다고 본다         # 공식 정류장 시각이 추정 기점 시각에서 이만큼 벗어나면 버린다   # 공식 막차·첫차에서 이 시간 안의 버스는 공식 시각 쪽으로 보정한다
 
 RAIL_QUALITY_OK = {"ok", "dep_from_arr"}
@@ -60,6 +61,7 @@ class Route:
     exact_first: bool = False # 첫 운행이 공식 시각 (여유 없이 탈 수 있음)
     exact_last: bool = False  # 마지막 운행이 공식 시각
     stop_seq: np.ndarray = None  # 버스: 정류장마다 노선 순서 번호 (실시간 API의 ord)
+    route_type: str = None       # 버스: 간선·지선·순환·마을·광역 (요금 계산용)
 
 
 @dataclass
@@ -251,6 +253,8 @@ def load_bus(net, day):
             continue
         if str(r.route_no).startswith("한강"):   # 한강버스(선박)는 뺀다
             continue
+        if r.route_type in EXCLUDED_BUS_TYPES:    # 공항·관광버스는 요금이 다르고 심야 귀가와 맞지 않아 뺀다
+            continue
         seq = rs[rs.route_id == r.route_id].sort_values("seq")
         g = seg_by_route[r.route_id].set_index("seq")
         seqs, sids = seq.seq.to_numpy(), seq.stop_id.to_numpy()
@@ -338,7 +342,8 @@ def load_bus(net, day):
                                 labels, headway_min=float(hw), route_id=r.route_id,
                                 board_slack=int(hw * 60 * BUS_BOARD_SLACK_RATIO),
                                 exact_first=applied and F is not None and (~np.isnan(F)).sum() >= 1,
-                                exact_last=applied, stop_seq=seq.seq.to_numpy()[keep].astype(np.int32)))
+                                exact_last=applied, stop_seq=seq.seq.to_numpy()[keep].astype(np.int32),
+                                route_type=r.route_type if isinstance(r.route_type, str) else None))
     net.bus_official_routes = n_official
     net.bus_short_turn_routes = n_short_turn[0]
     bus_pts = stops[(stops.has_coord == 1) & (stops.is_virtual == 0)]

@@ -151,6 +151,7 @@ def reconstruct(net, k, s, p_arr, p_ready, arr, egress_w, t0, last_leg=None):
         if r.kind == "bus":
             leg["headway_min"] = r.headway_min
             leg["route_id"] = r.route_id
+            leg["route_type"] = r.route_type
             leg["board_stop_id"] = net.stop_id[bs]
             if r.stop_seq is not None:
                 leg["board_seq"] = int(r.stop_seq[b])
