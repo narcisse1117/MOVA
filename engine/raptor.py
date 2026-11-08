@@ -32,7 +32,7 @@ def nearby(net, lat, lon, radius=ACCESS_M):
     return best
 
 
-def query(net, origin, dest, t0, max_legs=MAX_LEGS, return_state=False, skip_routes=None):
+def query(net, origin, dest, t0, max_legs=MAX_LEGS, return_state=False, skip_routes=None, extra_access=None):
     """origin, dest: (lat, lon). t0: 운행일 기준 초. 결과: 탈것 수가 적은 순으로 더 빨라지는 경로 목록."""
     n = len(net.stop_id)
     access = nearby(net, *origin)
@@ -48,6 +48,12 @@ def query(net, origin, dest, t0, max_legs=MAX_LEGS, return_state=False, skip_rou
         ready[0][s] = t0 + w
         p_ready[0][s] = ("access", w)
     marked = set(access)
+    # 처음 구간 택시: {정류장: (탈 수 있는 시각, 택시 구간 정보)}
+    for s, (rt, leg) in (extra_access or {}).items():
+        if rt < ready[0][s]:
+            ready[0][s] = rt
+            p_ready[0][s] = ("taxi", leg)
+            marked.add(s)
 
     for k in range(1, max_legs + 1):
         # 표시된 정류장을 지나는 노선마다 가장 앞 위치부터 훑는다
@@ -143,6 +149,9 @@ def reconstruct(net, k, s, p_arr, p_ready, arr, egress_w, t0, last_leg=None):
             leg["dist_m"] = int(d * k_detour)
         legs.append(leg)
         pr = p_ready[k - 1][bs]
+        if pr[0] == "taxi":
+            legs.append(dict(pr[1], to=net.stop_name[bs]))
+            break
         if pr[0] == "access":
             legs.append({"type": "walk", "from": "출발지", "to": net.stop_name[bs], "sec": pr[1]})
             break
@@ -168,25 +177,41 @@ def describe(res, t0):
     return "\n".join(lines)
 
 
-def plan(net, origin, dest, t0, max_legs=MAX_LEGS):
-    """F1·F2: 택시 직행 / 대중교통만 / 대중교통 + 마지막 택시 조합을 함께 낸다.
+FIRST_TAXI_CAPS = [7000, 10000, 14000, 20000]   # 처음 구간 택시비 상한별로 따로 찾는다
+FIRST_TAXI_MIN_M, FIRST_TAXI_MAX_M = 1000, 15000
 
-    조합: 대중교통으로 닿은 모든 역·정류장(라운드별)에서 도착지까지 택시를 탄다고 보고,
-    택시비 + 시간 가치 × 걸린 시간이 가장 작은 곳을 추천한다. 도착 시각과 택시비가
-    서로 나아지는 다른 후보(파레토) 중 가장 빠른 것·가장 싼 것도 같이 낸다.
-    """
-    transit, st = query(net, origin, dest, t0, max_legs, return_state=True)
+
+def _taxi_leg(frm, to, start, t, i=None):
+    g = (lambda k: int(t[k][i])) if i is not None else (lambda k: int(t[k]))
+    return {"type": "taxi", "from": frm, "to": to, "dep": start + g("wait_sec"),
+            "arr": start + g("wait_sec") + g("drive_sec"), "wait_sec": g("wait_sec"), "drive_sec": g("drive_sec"),
+            "dist_m": g("dist_m"), "fare": g("fare"), "fare_range": (g("fare_lo"), g("fare_hi"))}
+
+
+def first_taxi_access(net, origin, t0, cap):
+    """출발지에서 택시로 갈 지하철역 후보 (택시비 cap원 이하) → query()의 extra_access."""
+    xy = stop_coords(net)
+    oxy = to_xy([origin[0]], [origin[1]])[0]
+    rail = np.flatnonzero(np.array([k == "rail" for k in net.stop_kind]) & ~np.isnan(xy[:, 0]))
+    d = np.linalg.norm(xy[rail] - oxy, axis=1)
+    m = (d >= FIRST_TAXI_MIN_M) & (d <= FIRST_TAXI_MAX_M)
+    rail, d = rail[m], d[m]
+    if not len(rail):
+        return {}
+    t = fares.taxi_trip(d, np.full(len(d), t0))
+    out = {}
+    for i in np.flatnonzero(t["fare"] <= cap):
+        leg = _taxi_leg("출발지", net.stop_name[rail[i]], t0, t, i)
+        out[int(rail[i])] = (leg["arr"] + RAIL_EXIT_SEC, leg)
+    return out
+
+
+def _options_from_search(net, dest, t0, transit, st, max_legs):
+    """한 번의 탐색 결과 → 후보 (대중교통으로 끝까지 + 마지막 택시)."""
+    opts = []
     for r in transit:
-        r["fare"] = fares.transit_fare(r["legs"])
-    oxy, dxy = to_xy([origin[0]], [origin[1]])[0], to_xy([dest[0]], [dest[1]])[0]
-
-    # 택시 직행
-    tr = fares.taxi_trip(np.array([np.linalg.norm(oxy - dxy)]), np.array([t0]))
-    direct = {"arrive": int(t0 + tr["wait_sec"][0] + tr["drive_sec"][0]), "fare": int(tr["fare"][0]),
-              "fare_range": (int(tr["fare_lo"][0]), int(tr["fare_hi"][0])), "wait_sec": int(tr["wait_sec"][0]),
-              "drive_sec": int(tr["drive_sec"][0]), "dist_m": int(tr["dist_m"][0])}
-
-    # 조합 후보: 라운드 k에 내린 정류장 s에서 택시
+        opts.append(dict(r))
+    dxy = to_xy([dest[0]], [dest[1]])[0]
     xy = stop_coords(net)
     is_rail = np.array([k == "rail" for k in net.stop_kind])
     cands = []
@@ -204,40 +229,92 @@ def plan(net, origin, dest, t0, max_legs=MAX_LEGS):
         t = fares.taxi_trip(straight, start)
         arrive = start + t["wait_sec"] + t["drive_sec"]
         for j in range(len(idx)):
-            cands.append((int(arrive[j]), int(t["fare"][j]), k, int(idx[j]), int(start[j]),
-                          {key: int(v[j]) for key, v in t.items()}))
+            cands.append((int(arrive[j]), int(t["fare"][j]), k, int(idx[j]), int(start[j]), t, j))
+    if not cands:
+        return opts
+    # 마지막 택시 후보는 많으니, 마지막 택시비 기준 점수·파레토로 몇 개만 골라 경로를 복원한다
+    def score(c):
+        return c[1] + fares.VALUE_PER_MIN * (c[0] - t0) / 60
+    pareto, best_fare = [], INF
+    for c in sorted(cands, key=lambda c: (c[0], c[1])):
+        if c[1] < best_fare - 500:
+            pareto.append(c)
+            best_fare = c[1]
+    picks = sorted(cands, key=score)[:3] + pareto[:2] + pareto[-2:]
+    seen = set()
+    for arrive, fare, k, s, start, t, j in picks:
+        if (k, s) in seen:
+            continue
+        seen.add((k, s))
+        leg = _taxi_leg(net.stop_name[s], "도착지", start, t, j)
+        legs = reconstruct(net, k, s, st["p_arr"], st["p_ready"], st["arr"], 0, t0, last_leg=leg)
+        opts.append({"legs_count": k, "arrive": arrive, "legs": legs})
+    return opts
+
+
+def _price(opt):
+    taxi = sum(l["fare"] for l in opt["legs"] if l["type"] == "taxi")
+    tf = fares.transit_fare(opt["legs"])
+    first = opt["legs"][0]["type"] == "taxi"
+    last = opt["legs"][-1]["type"] == "taxi"
+    kind = {(False, False): "transit", (True, False): "taxi_first", (False, True): "taxi_last",
+            (True, True): "taxi_both"}[(first, last)]
+    return dict(opt, taxi_fare=taxi, transit_fare=tf, fare=taxi + tf, combo_kind=kind)
+
+
+def plan(net, origin, dest, t0, max_legs=MAX_LEGS):
+    """F1·F2: 택시 직행 / 대중교통만 / 대중교통 + 택시 조합을 함께 낸다.
+
+    조합은 세 가지: 마지막 구간 택시(대중교통으로 근처까지), 처음 구간 택시(택시로 막차가 남은 역까지),
+    양쪽 다 택시. 처음 구간 택시는 택시비 상한(FIRST_TAXI_CAPS)마다 따로 탐색한다. 탐색은 가장 빨리
+    도착하는 경로만 찾으므로, 상한이 없으면 늘 택시를 멀리 타는 경로만 나오기 때문이다.
+    추천: 총요금 + 시간 가치 × 걸린 시간이 가장 작은 조합. 다른 안: 파레토 후보 중 가장 빠른 것·가장 싼 것.
+    """
+    transit, st = query(net, origin, dest, t0, max_legs, return_state=True)
+    for r in transit:
+        r["fare"] = fares.transit_fare(r["legs"])
+    oxy, dxy = to_xy([origin[0]], [origin[1]])[0], to_xy([dest[0]], [dest[1]])[0]
+
+    tr = fares.taxi_trip(np.array([np.linalg.norm(oxy - dxy)]), np.array([t0]))
+    direct = {"arrive": int(t0 + tr["wait_sec"][0] + tr["drive_sec"][0]), "fare": int(tr["fare"][0]),
+              "fare_range": (int(tr["fare_lo"][0]), int(tr["fare_hi"][0])), "wait_sec": int(tr["wait_sec"][0]),
+              "drive_sec": int(tr["drive_sec"][0]), "dist_m": int(tr["dist_m"][0])}
+
+    opts = _options_from_search(net, dest, t0, [], st, max_legs)
+    for cap in FIRST_TAXI_CAPS:
+        if cap >= direct["fare"]:
+            break
+        acc = first_taxi_access(net, origin, t0, cap)
+        if not acc:
+            continue
+        res, st2 = query(net, origin, dest, t0, max_legs, return_state=True, extra_access=acc)
+        opts += _options_from_search(net, dest, t0, res, st2, max_legs)
+    opts = [o for o in (_price(o) for o in opts) if o["combo_kind"] != "transit"]
+
     # 의미 있는 조합만: 택시 직행보다 충분히 싸고, 대중교통만보다 충분히 빨라야 한다
     save = max(fares.CFG["choice"]["min_saving_won"], direct["fare"] * fares.CFG["choice"]["min_saving_ratio"])
     fastest_transit = min((r["arrive"] for r in transit), default=INF)
-    cands = [c for c in cands
-             if c[1] + fares.TRANSIT["subway"] <= direct["fare"] - save and c[0] < fastest_transit - MIN_GAIN_SEC]
+    opts = [o for o in opts if o["fare"] <= direct["fare"] - save and o["arrive"] < fastest_transit - MIN_GAIN_SEC]
     combos = []
-    if cands:
-        def score(c):
-            return c[1] + fares.VALUE_PER_MIN * (c[0] - t0) / 60
-
+    if opts:
+        def score(o):
+            return o["fare"] + fares.VALUE_PER_MIN * (o["arrive"] - t0) / 60
+        pick = min(opts, key=score)
         pareto, best_fare = [], INF
-        for c in sorted(cands, key=lambda c: (c[0], c[1])):
-            if c[1] < best_fare - 500:          # 500원 넘게 싸질 때만 다른 후보로 본다
-                pareto.append(c)
-                best_fare = c[1]
-        pick = min(cands, key=score)
+        for o in sorted(opts, key=lambda o: (o["arrive"], o["fare"])):
+            if o["fare"] < best_fare - 500:
+                pareto.append(o)
+                best_fare = o["fare"]
         # 다른 안은 추천과 2,000원 또는 10분 넘게 달라야 보여준다
-        others = [c for c in pareto if abs(c[1] - pick[1]) >= 2000 or abs(c[0] - pick[0]) >= 600]
-        chosen = [pick] + others[:1] + others[-1:]   # 추천, 가장 빠른 것, 가장 싼 것
+        others = [o for o in pareto if abs(o["fare"] - pick["fare"]) >= 2000 or abs(o["arrive"] - pick["arrive"]) >= 600]
+        chosen = [pick] + others[:1] + others[-1:]
         seen = set()
-        for c in chosen:
-            if c[3] in seen:
+        for o in chosen:
+            key = (o["arrive"], o["fare"])
+            if key in seen:
                 continue
-            seen.add(c[3])
-            arrive, fare, k, s, start, t = c
-            leg = {"type": "taxi", "from": net.stop_name[s], "to": "도착지", "dep": start + t["wait_sec"],
-                   "arr": arrive, "wait_sec": t["wait_sec"], "drive_sec": t["drive_sec"], "dist_m": t["dist_m"],
-                   "fare": fare, "fare_range": (t["fare_lo"], t["fare_hi"])}
-            legs = reconstruct(net, k, s, st["p_arr"], st["p_ready"], st["arr"], 0, t0, last_leg=leg)
-            tf = fares.transit_fare(legs)
-            combos.append({"legs_count": k, "arrive": arrive, "taxi_fare": fare, "transit_fare": tf,
-                           "fare": fare + tf, "legs": legs, "recommended": c is pick})
+            seen.add(key)
+            combos.append(dict(o, recommended=o is pick))
     return {"t0": t0, "taxi_direct": direct, "transit": transit, "combo": combos}
 
 
@@ -267,7 +344,8 @@ def describe_plan(p):
         out.append("[대중교통만] 갈 수 없음")
     for c in p["combo"]:
         tag = "조합 추천" if c["recommended"] else "조합 다른 안"
-        out.append(f"[{tag}] 도착 {fmt(c['arrive'])} (총 {(c['arrive'] - t0) // 60}분), "
+        kind = {"taxi_first": "처음 택시", "taxi_last": "마지막 택시", "taxi_both": "양쪽 택시"}[c["combo_kind"]]
+        out.append(f"[{tag} · {kind}] 도착 {fmt(c['arrive'])} (총 {(c['arrive'] - t0) // 60}분), "
                    f"{c['fare']:,}원 (대중교통 {c['transit_fare']:,} + 택시 {c['taxi_fare']:,})")
         out += [describe_leg(l) for l in c["legs"]]
     return "\n".join(out)

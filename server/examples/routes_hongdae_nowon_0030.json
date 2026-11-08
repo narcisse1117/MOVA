@@ -62,6 +62,7 @@
           "taxi": 0
         },
         "recommended": false,
+        "combo_kind": null,
         "legs": [
           {
             "type": "walk",
@@ -118,6 +119,7 @@
           "taxi": 8000
         },
         "recommended": true,
+        "combo_kind": "taxi_last",
         "legs": [
           {
             "type": "walk",
@@ -162,114 +164,6 @@
             "fare_range": [
               7700,
               8400
-            ],
-            "estimated": true
-          }
-        ]
-      },
-      {
-        "kind": "combo",
-        "arrival": "2026-11-10T01:34:34+09:00",
-        "duration_min": 64,
-        "fare": 22800,
-        "rides": 1,
-        "fare_detail": {
-          "transit": 1500,
-          "taxi": 21300
-        },
-        "recommended": false,
-        "legs": [
-          {
-            "type": "walk",
-            "from": "출발지",
-            "to": "홍대입구역",
-            "duration_sec": 213
-          },
-          {
-            "type": "bus",
-            "from": "홍대입구역",
-            "to": "종로4가.종묘",
-            "line": "271",
-            "trip": "기점 22:14 출발",
-            "departure": "2026-11-10T00:34:37+09:00",
-            "arrival": "2026-11-10T01:00:20+09:00",
-            "stops": 14,
-            "headway_min": 6.0,
-            "distance_m": 8408
-          },
-          {
-            "type": "taxi",
-            "from": "종로4가.종묘",
-            "to": "도착지",
-            "departure": "2026-11-10T01:07:20+09:00",
-            "arrival": "2026-11-10T01:34:34+09:00",
-            "wait_sec": 420,
-            "drive_sec": 1634,
-            "distance_m": 14976,
-            "fare": 21300,
-            "fare_range": [
-              19400,
-              23800
-            ],
-            "estimated": true
-          }
-        ]
-      },
-      {
-        "kind": "combo",
-        "arrival": "2026-11-10T01:50:02+09:00",
-        "duration_min": 80,
-        "fare": 12200,
-        "rides": 2,
-        "fare_detail": {
-          "transit": 1700,
-          "taxi": 10500
-        },
-        "recommended": false,
-        "legs": [
-          {
-            "type": "walk",
-            "from": "출발지",
-            "to": "홍대입구역",
-            "duration_sec": 213
-          },
-          {
-            "type": "bus",
-            "from": "홍대입구역",
-            "to": "종로3가역.탑골공원",
-            "line": "271",
-            "trip": "기점 22:14 출발",
-            "departure": "2026-11-10T00:34:37+09:00",
-            "arrival": "2026-11-10T00:58:54+09:00",
-            "stops": 13,
-            "headway_min": 6.0,
-            "distance_m": 7798
-          },
-          {
-            "type": "bus",
-            "from": "종로3가역.탑골공원",
-            "to": "수유역.강북구청",
-            "line": "140",
-            "trip": "기점 22:43 출발",
-            "departure": "2026-11-10T01:00:41+09:00",
-            "arrival": "2026-11-10T01:33:53+09:00",
-            "stops": 17,
-            "headway_min": 7.0,
-            "distance_m": 10577
-          },
-          {
-            "type": "taxi",
-            "from": "수유역.강북구청",
-            "to": "도착지",
-            "departure": "2026-11-10T01:40:53+09:00",
-            "arrival": "2026-11-10T01:50:02+09:00",
-            "wait_sec": 420,
-            "drive_sec": 549,
-            "distance_m": 5035,
-            "fare": 10500,
-            "fare_range": [
-              9600,
-              11200
             ],
             "estimated": true
           }

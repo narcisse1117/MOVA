@@ -134,6 +134,7 @@ def option_json(kind, r, day, t0):
             "fare_detail": {"transit": r.get("transit_fare", r["fare"] if kind == "transit" else 0),
                             "taxi": r.get("taxi_fare", 0)},
             "recommended": r.get("recommended", False),
+            "combo_kind": r.get("combo_kind"),
             "legs": [leg_json(l, day) for l in r["legs"]]}
 
 

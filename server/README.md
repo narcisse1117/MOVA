@@ -41,7 +41,7 @@ python -m uvicorn server.app:app --reload --port 8000
  "departure_time": "2026-11-10T00:30"}
 ```
 
-응답 `options`: `kind`가 `taxi`(택시 직행) / `transit`(대중교통만, 탈것 수별로 여러 개일 수 있음) / `combo`(조합, `recommended: true`가 추천). 각 항목에 `arrival`, `duration_min`, `fare`, `fare_detail{transit, taxi}`, `legs`.
+응답 `options`: `kind`가 `taxi`(택시 직행) / `transit`(대중교통만, 탈것 수별로 여러 개일 수 있음) / `combo`(조합, `recommended: true`가 추천, `combo_kind`는 `taxi_last` 마지막 택시 / `taxi_first` 처음 택시 / `taxi_both` 양쪽). 각 항목에 `arrival`, `duration_min`, `fare`, `fare_detail{transit, taxi}`, `legs`.
 
 ### `POST /api/deadline`
 

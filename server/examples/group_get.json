@@ -16,7 +16,7 @@
     ]
   },
   "response": {
-    "id": "JFKjOPGD",
+    "id": "gWAH7pvf",
     "name": "송년회",
     "date": "2026-12-18",
     "day_type": "WD",
@@ -27,7 +27,7 @@
     },
     "members": [
       {
-        "id": "BoiDAtWs",
+        "id": "S_wy_Jxk",
         "nickname": "지영",
         "home": {
           "lat": 37.484201,
@@ -50,6 +50,7 @@
                 "taxi": 0
               },
               "recommended": false,
+              "combo_kind": null,
               "legs": [
                 {
                   "type": "walk",
@@ -92,6 +93,7 @@
                 "taxi": 0
               },
               "recommended": false,
+              "combo_kind": null,
               "legs": [
                 {
                   "type": "walk",
@@ -123,7 +125,7 @@
         }
       },
       {
-        "id": "Ks68MCl3",
+        "id": "MCXbRSyD",
         "nickname": "민수",
         "home": {
           "lat": 37.655128,
@@ -146,6 +148,7 @@
                 "taxi": 0
               },
               "recommended": false,
+              "combo_kind": null,
               "legs": [
                 {
                   "type": "walk",
@@ -225,6 +228,7 @@
                 "taxi": 0
               },
               "recommended": false,
+              "combo_kind": null,
               "legs": [
                 {
                   "type": "walk",
@@ -256,7 +260,7 @@
         }
       },
       {
-        "id": "SSUFfjs-",
+        "id": "GWDLP8iY",
         "nickname": "현우",
         "home": {
           "lat": 37.557192,
@@ -279,6 +283,7 @@
                 "taxi": 0
               },
               "recommended": false,
+              "combo_kind": null,
               "legs": [
                 {
                   "type": "walk",
@@ -352,6 +357,7 @@
                 "taxi": 0
               },
               "recommended": false,
+              "combo_kind": null,
               "legs": [
                 {
                   "type": "walk",
