@@ -182,11 +182,11 @@ def leg_json(leg, day):
                     "stops": leg["stops"]})
         if leg["type"] == "bus":
             out["headway_min"] = leg["headway_min"]
-            if leg.get("realtime"):
-                rt = dict(leg["realtime"])
-                if "realtime_dep" in rt:
-                    rt["realtime_dep"] = to_iso(day, rt["realtime_dep"])
-                out["realtime"] = rt
+        if leg.get("realtime"):
+            rt = dict(leg["realtime"])
+            if "realtime_dep" in rt:
+                rt["realtime_dep"] = to_iso(day, rt["realtime_dep"])
+            out["realtime"] = rt
         if "dist_m" in leg:
             out["distance_m"] = leg["dist_m"]
     return out

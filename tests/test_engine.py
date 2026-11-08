@@ -81,3 +81,24 @@ def test_plan_has_taxi_transit_and_cheaper_combo(net_wd):
         assert c["fare"] < p["taxi_direct"]["fare"]
         assert c["combo_kind"] in ("taxi_first", "taxi_last", "taxi_both")
         assert sum(1 for c in p["combo"] if c["recommended"]) == 1
+
+
+def test_subway_message_parsing():
+    import realtime
+    assert realtime._parse_msg_sec("4분 30초 후") == 270
+    assert realtime._parse_msg_sec("3분 후") == 180
+    assert realtime._parse_msg_sec("강남 도착") == 0
+    assert realtime._parse_msg_sec("[3]번째 전역 (청계산입구)") is None
+
+
+def test_subway_realtime_matches_train_number(monkeypatch):
+    import realtime
+    trains = [{"line_id": "1002", "train": "2309", "terminus": "성수", "sec": 300, "is_last": False, "msg": "5분 후"},
+              {"line_id": "1002", "train": "2311", "terminus": "성수", "sec": 600, "is_last": True, "msg": "10분 후"}]
+    monkeypatch.setattr(realtime, "subway_arrivals", lambda st: trains)
+    leg = {"type": "rail", "line": "2호선", "trip": "2311 성수행", "from": "홍대입구", "dep": 1000 + 540}
+    info = realtime._annotate_rail(leg, lead=120, now_sec=1000)
+    assert info["matched"] == "train" and info["is_last"] and info["arrive_in_sec"] == 600
+    leg2 = dict(leg, trip="9999 성수행")                      # 번호가 없으면 같은 행선지 첫 열차
+    assert realtime._annotate_rail(leg2, lead=120, now_sec=1000)["matched"] == "direction"
+    assert realtime._annotate_rail(leg, lead=700, now_sec=1000)["status"] == "missed"

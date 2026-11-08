@@ -17,6 +17,8 @@ WALK_MPS = 1.1
 DETOUR = 1.3
 RAIL_EXIT_SEC = 120
 MIN_GAIN_SEC = 300
+MAX_LATER_MIN_SEC = 1800     # 가장 빠른 경로보다 이만큼(또는 걸리는 시간의 MAX_LATER_RATIO) 넘게 늦으면 뺀다
+MAX_LATER_RATIO = 0.5
 
 
 def nearby(net, lat, lon, radius=ACCESS_M):
@@ -124,6 +126,11 @@ def query(net, origin, dest, t0, max_legs=MAX_LEGS, return_state=False, skip_rou
             best_total = total
             results.append({"legs_count": k, "arrive": int(total),
                             "legs": reconstruct(net, k, s, p_arr, p_ready, arr, egress[s], t0)})
+    # 갈아타기가 적어도 너무 늦게 도착하는 경로는 뺀다 (예: 낮 18시에 밤 심야버스로 8시간 뒤 도착)
+    if results:
+        fastest = min(r["arrive"] for r in results)
+        slack = max(MAX_LATER_MIN_SEC, (fastest - t0) * MAX_LATER_RATIO)
+        results = [r for r in results if r["arrive"] <= fastest + slack]
     if return_state:
         return results, {"arr": arr, "p_arr": p_arr, "p_ready": p_ready}
     return results
@@ -395,7 +402,7 @@ def describe_leg(l):
         return (f"  택시{src} {l['from']} {fmt(l['dep'])} → {l['to']} {fmt(l['arr'])} "
                 f"(호출 대기 {l['wait_sec'] // 60}분 뒤 출발, {l['dist_m'] / 1000:.1f}km, {l['fare']:,}원 / {lo:,}~{hi:,}원)")
     extra = f", 배차 {l['headway_min']:.0f}분" if l["type"] == "bus" else ""
-    rt = ""
+    rt = ""  # 버스·지하철 공통
     if l.get("realtime"):
         x = l["realtime"]
         if x["status"] in ("ok", "later", "earlier"):
