@@ -48,6 +48,7 @@
     "_comment": "Directions 5: 대표 계정 월 60,000건 무료, 넘으면 건당 5원(VAT 별도). 한도를 넘기 전에 멈춘다",
     "enabled": true,
     "monthly_limit": 55000,
+    "daily_limit": 1900,
     "real_fare_range": 0.08
   },
 

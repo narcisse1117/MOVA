@@ -83,6 +83,7 @@
 - 코드 업데이트: 서버에서 `cd ~/MOVA && git pull && sudo systemctl restart mova` (GitHub Deploy key `ec2-sydney`, 읽기 전용)
 - 데이터(`prep/out`, `데이터/` 키·공식 시각)는 GitHub에 없어서 scp로 올림 (`deploy/upload.ps1`)
 - cron: 월·토 14:00 공식 막차, 수·금 22:50 심야버스 수집. 2026-11-08(일) 밤 심야버스 수집은 서버에서 실행 중
+- **접근 제한 (2026-11-08):** CORS는 localhost·`*.vercel.app`만, IP별 요청 제한(무거운 요청 1분 20·하루 300), 네이버 하루 1,900건 상한. 프론트 주소 정해지면 `config/app.json` `cors_origins`에 추가
 - 자세한 건 `deploy/README.md`
 
 ## 이번 주 할 일 (2026-11-08 ~ 11-14)

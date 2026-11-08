@@ -18,8 +18,12 @@ import sys
 import threading
 from typing import List, Optional  # noqa: F401
 
-from fastapi import FastAPI, HTTPException
+import time
+from collections import defaultdict, deque
+
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -38,7 +42,44 @@ KST = dt.timezone(dt.timedelta(hours=9))
 DB_PATH = os.path.join(ROOT, "server", "data", "mova.db")
 
 app = FastAPI(title=APP_CFG["service_name"] + " API", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=APP_CFG.get("cors_origins", []),
+                   allow_origin_regex=APP_CFG.get("cors_origin_regex"), allow_methods=["GET", "POST"],
+                   allow_headers=["Content-Type"])
+
+# ---------- 요청 제한 (IP별, 메모리) ----------
+# 무거운 요청(경로·마감·모임 조회)은 엔진과 네이버 호출을 쓰므로 더 세게 막는다
+HEAVY = {"/api/routes", "/api/deadline"}
+LIMITS = APP_CFG.get("rate_limits", {"heavy": [20, 300], "light": [60, 3000]})
+_hits = defaultdict(deque)
+_hits_lock = threading.Lock()
+
+
+def client_ip(request: Request) -> str:
+    # Caddy가 앞에 있으므로 X-Forwarded-For의 첫 주소가 실제 사용자
+    xff = request.headers.get("x-forwarded-for")
+    return xff.split(",")[0].strip() if xff else (request.client.host if request.client else "?")
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    path = request.url.path
+    if not path.startswith("/api/") or path in ("/api/health", "/api/config") or request.method == "OPTIONS":
+        return await call_next(request)
+    heavy = path in HEAVY or (path.startswith("/api/groups/") and request.method == "GET")
+    per_min, per_day = LIMITS["heavy" if heavy else "light"]
+    key = (client_ip(request), "heavy" if heavy else "light")
+    now = time.time()
+    with _hits_lock:
+        q = _hits[key]
+        while q and now - q[0] > 86400:
+            q.popleft()
+        last_min = sum(1 for t in q if now - t <= 60)
+        if last_min >= per_min or len(q) >= per_day:
+            wait = 60 if last_min >= per_min else int(86400 - (now - q[0]))
+            return JSONResponse({"detail": "요청이 너무 많아요. 잠시 뒤에 다시 시도해 주세요.", "retry_after_sec": wait},
+                                status_code=429, headers={"Retry-After": str(wait)})
+        q.append(now)
+    return await call_next(request)
 
 
 # ---------- 시각 변환 ----------
@@ -165,7 +206,9 @@ def option_json(kind, r, day, t0):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "loaded_networks": sorted(_nets)}
+    return {"ok": True, "loaded_networks": sorted(_nets),
+            "naver_calls": {"today": naver.usage_today(), "month": naver.usage_this_month(),
+                            "daily_limit": naver.DAILY_LIMIT, "monthly_limit": naver.MONTHLY_LIMIT}}
 
 
 @app.get("/api/config")

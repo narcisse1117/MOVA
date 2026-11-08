@@ -22,6 +22,12 @@ python -m uvicorn server.app:app --reload --port 8000
 - **운행일:** 03시 전은 전날 운행일로 본다. 응답의 `service_day`, `day_type`(`WD`/`SAT`/`HOL`)으로 알 수 있다
 - **구간(`legs`) 종류:** `walk`(걷기, `duration_sec`), `subway`, `bus`(`line`, `departure`, `arrival`, `stops`, 버스는 `headway_min`), `taxi`(`wait_sec`, `drive_sec`, `distance_m`, `fare`, `fare_range`, `source`: `naver_live` 네이버 실시간 / `naver` 네이버 거리 + 심야 속도 / `estimate` 직선거리 추정)
 
+## 접근 제한
+
+- **CORS:** `config/app.json`의 `cors_origins`(지금은 localhost 5173·3000)와 `cors_origin_regex`(`*.vercel.app`)에서만 브라우저로 부를 수 있다. 프론트 실제 주소가 정해지면 `cors_origins`에 추가하고 서버를 재시작한다
+- **요청 제한 (IP별):** 무거운 요청(`/api/routes`, `/api/deadline`, `GET /api/groups/{id}`)은 1분 20번·하루 300번, 나머지는 1분 60번·하루 3,000번. 넘으면 `429` + `retry_after_sec`. 숫자는 `config/app.json`의 `rate_limits`
+- **네이버 호출:** 하루 1,900건·한 달 55,000건을 넘으면 그날(그달)은 택시를 추정으로 계산한다 (서비스는 계속 됨). 사용량은 `GET /api/health`의 `naver_calls`
+
 ## API
 
 | 메서드 | 경로 | 하는 일 |

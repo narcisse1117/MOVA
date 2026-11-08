@@ -27,6 +27,7 @@ REVERSE_URL = "https://maps.apigw.ntruss.com/map-reversegeocode/v2/gc"
 with open(os.path.join(ROOT, "config", "fares.json"), encoding="utf-8") as _f:
     CFG = json.load(_f).get("naver", {})
 MONTHLY_LIMIT = CFG.get("monthly_limit", 55000)
+DAILY_LIMIT = CFG.get("daily_limit", 1900)       # 한 사람이 몰아 써도 한 달 한도가 며칠 만에 바닥나지 않게
 ENABLED = CFG.get("enabled", True)
 DURATION_FRESH_MIN = 15      # 저장된 소요 시간을 '지금 교통'으로 믿는 시간
 
@@ -67,6 +68,12 @@ def usage_this_month():
         return r[0] if r else 0
 
 
+def usage_today():
+    with _lock, _db() as con:
+        r = con.execute("select calls from usage where month=?", (dt.date.today().strftime("%Y-%m-%d"),)).fetchone()
+        return r[0] if r else 0
+
+
 def route(points, need_fresh_duration=False):
     """points: [(lat, lng), ...] 출발 → (경유지…) → 도착. 결과 {dist_m, duration_sec, legs:[(dist_m, sec)], fresh}
     부를 수 없거나 실패하면 None."""
@@ -81,12 +88,14 @@ def route(points, need_fresh_duration=False):
         fresh = now - fetched < dt.timedelta(minutes=DURATION_FRESH_MIN)
         if fresh or not need_fresh_duration:
             return {"dist_m": row[0], "duration_sec": row[1], "legs": json.loads(row[2]), "fresh": fresh, "cached": True}
-    month = now.strftime("%Y-%m")
+    month, day = now.strftime("%Y-%m"), now.strftime("%Y-%m-%d")
     with _lock, _db() as con:
         r = con.execute("select calls from usage where month=?", (month,)).fetchone()
-        if (r[0] if r else 0) >= MONTHLY_LIMIT:
+        d = con.execute("select calls from usage where month=?", (day,)).fetchone()
+        if (r[0] if r else 0) >= MONTHLY_LIMIT or (d[0] if d else 0) >= DAILY_LIMIT:
             return None
-        con.execute("insert into usage values (?, 1) on conflict(month) do update set calls = calls + 1", (month,))
+        for key in (month, day):     # usage 표에 월(YYYY-MM)과 일(YYYY-MM-DD)을 같이 센다
+            con.execute("insert into usage values (?, 1) on conflict(month) do update set calls = calls + 1", (key,))
     cid, sec = _load_key()
     p = {"start": f"{points[0][1]},{points[0][0]}", "goal": f"{points[-1][1]},{points[-1][0]}", "option": "trafast"}
     if len(points) > 2:
