@@ -7,6 +7,7 @@ API는 조회한 날의 운행 기준 시각을 준다. 평일·토요일·공�
 인증키: 데이터/seoul_key2.txt 첫 줄 (공공데이터포털 키, 채팅에 붙이지 않는다)
 출력:   데이터/bus_stop_times_YYYYMMDD_<WD|SAT|HOL>.csv
 실행:   python prep/fetch_bus_times.py            (이미 받은 노선은 건너뛴다)
+자동:   Windows 작업 스케줄러 'MOVA_fetch_bus_times' (매주 월·토 14:00, --log)
 """
 import csv
 import datetime as dt
@@ -93,4 +94,15 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # --log: 작업 스케줄러용. 출력을 prep/out/fetch_bus_times.log에 덧붙인다
+    if "--log" in sys.argv:
+        log = open(os.path.join(PREP, "out", "fetch_bus_times.log"), "a", encoding="utf-8")
+        sys.stdout = sys.stderr = log
+        print(f"==== {dt.datetime.now():%Y-%m-%d %H:%M:%S}")
+    try:
+        code = main()
+    except Exception as e:  # noqa: BLE001
+        print(f"오류: {e!r}")
+        code = 2
+    sys.stdout.flush()
+    sys.exit(code)
