@@ -47,10 +47,12 @@ sudo systemctl reload caddy || sudo systemctl restart caddy
 
 echo "== 7. 정기 수집 (cron): 월·토 14:00 공식 막차, 수·금 22:50 심야버스"
 CRON="$APP/.venv/bin/python"
-( crontab -l 2>/dev/null | grep -v MOVA_ ;
+# 기존 crontab이 없으면 crontab -l·grep이 실패하므로 || true (set -e, pipefail 때문)
+{ crontab -l 2>/dev/null | grep -v MOVA_ || true
   echo "0 14 * * 1,6 cd $APP && PYTHONIOENCODING=utf-8 $CRON prep/fetch_bus_times.py --log  # MOVA_fetch"
   echo "50 22 * * 3,5 cd $APP && PYTHONIOENCODING=utf-8 $CRON prep/collect_night_bus.py >> prep/out/night_bus.log 2>&1  # MOVA_night"
-) | crontab -
+} | crontab -
+crontab -l | grep MOVA_
 
 echo
 echo "끝. 확인: https://$HOST/api/health   문서: https://$HOST/docs"
