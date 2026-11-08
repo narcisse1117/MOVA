@@ -8,11 +8,14 @@ prep/out/의 지하철·버스·환승 표를 RAPTOR가 쓰는 노선망으로 �
 
 시각은 모두 운행일 기준 초 (자정 이후 86400 초과).
 """
+import glob
 import math
 import os
 import pickle
 from collections import defaultdict
 from dataclasses import dataclass, field
+
+import datetime as dt
 
 import numpy as np
 import pandas as pd
@@ -22,7 +25,12 @@ ENGINE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(ENGINE)
 PREP_OUT = os.path.join(ROOT, "prep", "out")
 CACHE = os.path.join(ENGINE, "cache")
-CACHE_VERSION = 3
+CACHE_VERSION = 8
+DATA = os.path.join(ROOT, "데이터")
+OFFICIAL_BLEND_SEC = 7200
+OUTLIER_SEC = 1800
+SHORT_TURN_SLACK = 180     # 공식 막차보다 이만큼 늦게 지나는 운행은 없는 것으로 본다
+INF32 = 2 ** 31 - 1         # 공식 정류장 시각이 추정 기점 시각에서 이만큼 벗어나면 버린다   # 공식 막차·첫차에서 이 시간 안의 버스는 공식 시각 쪽으로 보정한다
 
 RAIL_QUALITY_OK = {"ok", "dep_from_arr"}
 BUS_DAY = {"WD": ("WD", "wd"), "SAT": ("SAT", "we"), "HOL": ("HOL", "we")}
@@ -151,8 +159,76 @@ def load_rail(net, day):
     return pts
 
 
+def official_file(day):
+    files = sorted(glob.glob(os.path.join(DATA, f"bus_stop_times_*_{day}.csv")))
+    return files[-1] if files else None
+
+
+def load_official(day):
+    """fetch_bus_times.py가 받은 정류장별 첫차·막차 → {route_id: {seq: (첫차, 막차)}} (운행일 기준 초)."""
+    path = official_file(day)
+    if not path:
+        return {}, None
+    b = pd.read_csv(path, dtype=str, encoding="utf-8-sig")
+    base = dt.datetime.strptime(os.path.basename(path).split("_")[3], "%Y%m%d")
+
+    def sec(v):
+        if not isinstance(v, str) or len(v.strip()) != 14:
+            return np.nan
+        t = dt.datetime.strptime(v.strip(), "%Y%m%d%H%M%S")
+        return (t - base).total_seconds()
+
+    b["f"], b["l"] = b.first_tm.map(sec), b.last_tm.map(sec)
+    b["seq"] = pd.to_numeric(b.sta_ord, errors="coerce")
+    out = defaultdict(dict)
+    for rid, sq, st, f, l in zip(b.route_id, b.seq, b.st_id, b.f, b.l):
+        out[rid][int(sq)] = (st, f, l)
+    return out, os.path.basename(path)
+
+
+def clean_monotone(vals, slack=120):
+    """정류장 순서대로 시각이 늘어나야 한다. 순서가 맞는 값을 가장 많이 남기고(최장 증가 부분수열,
+    slack초 역행은 허용) 나머지는 튀는 값으로 보고 비운다."""
+    v = vals.astype(float).copy()
+    idx = np.flatnonzero(~np.isnan(v))
+    if len(idx) < 2:
+        return v
+    x = v[idx]
+    n = len(x)
+    best = np.ones(n, dtype=int)
+    prev = np.full(n, -1)
+    for i in range(1, n):
+        ok = np.flatnonzero(x[:i] <= x[i] + slack)
+        if len(ok):
+            j = ok[np.argmax(best[ok])]
+            if best[j] + 1 > best[i]:
+                best[i], prev[i] = best[j] + 1, j
+    keep = set()
+    i = int(np.argmax(best))
+    while i >= 0:
+        keep.add(i)
+        i = prev[i]
+    for k in range(n):
+        if k not in keep:
+            v[idx[k]] = np.nan
+    return v
+
+
+def fill_along(vals):
+    """정류장 순서를 따라 빈 보정값을 앞뒤 값으로 선형 보간한다."""
+    idx = np.arange(len(vals))
+    ok = ~np.isnan(vals)
+    if not ok.any():
+        return np.zeros(len(vals))
+    return np.interp(idx, idx[ok], vals[ok])
+
+
 def load_bus(net, day):
     code, seg_day = BUS_DAY[day]
+    official, official_name = load_official(day)
+    net.bus_official = official_name
+    n_official = 0
+    n_short_turn = [0]
     routes = pd.read_csv(os.path.join(PREP_OUT, "bus_routes.csv"), dtype={"route_id": str, "route_no": str})
     rs = pd.read_csv(os.path.join(PREP_OUT, "bus_route_stops.csv"), dtype={"route_id": str, "stop_id": str})
     seg = pd.read_csv(os.path.join(PREP_OUT, "bus_segments.csv"), dtype={"route_id": str, "stop_id": str})
@@ -172,27 +248,89 @@ def load_bus(net, day):
             continue
         seq = rs[rs.route_id == r.route_id].sort_values("seq")
         g = seg_by_route[r.route_id].set_index("seq")
+        seqs, sids = seq.seq.to_numpy(), seq.stop_id.to_numpy()
+        prof = np.array([g.loc[q, hcols].to_numpy(dtype=np.int64) if q in g.index else np.full(24, 60)
+                         for q in seqs[1:]], dtype=np.int64).reshape(-1, 24)
+
+        def simulate(dep):
+            out = np.empty((len(dep), len(seqs)), dtype=np.int64)
+            out[:, 0] = t = np.asarray(dep, dtype=np.int64)
+            for j in range(1, len(seqs)):
+                t = t + prof[j - 1][(t // 3600) % 24]
+                out[:, j] = t
+            return out
+
+        F = L = L_raw = None
+        off = official.get(r.route_id)
+        if off:
+            # 순서 번호와 정류장 ID가 모두 맞는 칸만, 뒤 정류장보다 늦은 값은 버린다
+            F = clean_monotone(np.array([off[q][1] if q in off and off[q][0] == sid else np.nan
+                                         for q, sid in zip(seqs, sids)]))
+            L_raw = np.array([off[q][2] if q in off and off[q][0] == sid else np.nan
+                              for q, sid in zip(seqs, sids)])
+            L = clean_monotone(L_raw)
+            # 기본정보의 기점 막차·첫차가 공식 정류장 시각과 10분 넘게 어긋나면 공식 쪽에서 거꾸로 구한다
+            # 정류장마다 '이 시각에 지나려면 기점을 언제 떠났어야 하나'를 구해 중앙값을 쓴다 (튀는 값에 강함)
+            for arr_, which in ((L, "last"), (F, "first")):
+                ok = np.flatnonzero(~np.isnan(arr_))
+                if len(ok) < 2:
+                    continue
+                base = last if which == "last" else first
+                probe = simulate([base])[0]
+                est_each = arr_[ok] - (probe[ok] - probe[0])
+                est = float(np.median(est_each))
+                arr_[ok[np.abs(est_each - est) > OUTLIER_SEC]] = np.nan
+                if abs(est - base) > 600:
+                    if which == "last":
+                        last = est
+                    else:
+                        first = est
+            if last < first:
+                F = L = None
+                first, last = getattr(r, f"{code}_first_sec"), getattr(r, f"{code}_last_sec")
         # 기점 출발 시각: 막차에서 배차 간격씩 거슬러 올라간다
         n = int((last - first) // (hw * 60)) + 1
         d0 = np.sort(last - np.arange(n) * hw * 60).astype(np.int64)
-        times = np.empty((n, len(seq)), dtype=np.int64)
-        times[:, 0] = d0
-        t = d0.copy()
-        for j, sq in enumerate(seq.seq.to_numpy()[1:], start=1):
-            if sq in g.index:
-                prof = g.loc[sq, hcols].to_numpy(dtype=np.int64)
-            else:
-                prof = np.full(24, 60, dtype=np.int64)
-            t = t + prof[(t // 3600) % 24]
-            times[:, j] = t
+        times = simulate(d0)
+        if L is not None and (~np.isnan(L)).sum() >= 2:
+            n_official += 1
+            c_last = fill_along(L - times[-1])
+            c_first = fill_along(F - times[0]) if (~np.isnan(F)).sum() >= 1 else np.zeros(len(seqs))
+            w_last = np.clip(1 - (last - d0) / OFFICIAL_BLEND_SEC, 0, 1)
+            w_first = np.clip(1 - (d0 - first) / OFFICIAL_BLEND_SEC, 0, 1)
+            tot = w_last + w_first
+            scale = np.where(tot > 1, 1 / np.maximum(tot, 1e-9), 1)
+            times = times + np.rint((w_last * scale)[:, None] * c_last
+                                    + (w_first * scale)[:, None] * c_first).astype(np.int64)
+            # 정류장 순서대로 시각이 줄지 않게, 앞차가 뒤차보다 늦지 않게
+            times = np.maximum.accumulate(times, axis=1)
+            times = np.minimum.accumulate(times[::-1], axis=0)[::-1]
+        times_arr = times.copy()
+        times_dep = times.copy()
+        if L_raw is not None:
+            # 단축 운행: 공식 막차보다 늦게 지나는 운행은 그 정류장에서 타고 내릴 수 없다.
+            # 튀는 값 하나로 막지 않게, 이웃 정류장도 같이 이른 경우만 적용한다
+            late = times[-1] > L_raw + SHORT_TURN_SLACK          # 막차가 공식보다 늦게 지나는 정류장
+            late &= ~np.isnan(L_raw)
+            near = np.zeros_like(late)
+            near[1:] |= late[:-1]
+            near[:-1] |= late[1:]
+            cut = late & near
+            if cut.any():
+                n_short_turn[0] += 1
+                bad = (times > L_raw + SHORT_TURN_SLACK) & cut[None, :]
+                times_arr[bad] = INF32
+                times_dep[bad] = INF32
         # 가상정류장은 빼고 시간만 남긴다 (다음 실제 정류장 시각에 이미 더해져 있음)
         keep = ~seq.stop_id.isin(virtual).to_numpy()
         stop_idx = np.array([net.add_stop("bus", sid, stop_name.get(sid, sid)) for sid in seq.stop_id[keep]],
                             dtype=np.int32)
-        times = times[:, keep]
+        times_arr, times_dep = times_arr[:, keep], times_dep[:, keep]
         labels = [f"기점 {fmt(x)} 출발" for x in d0]
-        net.routes.append(Route("bus", str(r.route_no), stop_idx, times.astype(np.int32), times.astype(np.int32),
+        net.routes.append(Route("bus", str(r.route_no), stop_idx, times_arr.astype(np.int32), times_dep.astype(np.int32),
                                 labels, headway_min=float(hw), route_id=r.route_id))
+    net.bus_official_routes = n_official
+    net.bus_short_turn_routes = n_short_turn[0]
     bus_pts = stops[(stops.has_coord == 1) & (stops.is_virtual == 0)]
     return bus_pts, skipped
 
@@ -240,6 +378,8 @@ def load(day="WD", rebuild=False):
     path = os.path.join(CACHE, f"network_{day}_v{CACHE_VERSION}.pkl")
     inputs = [os.path.join(PREP_OUT, f) for f in
               ("stop_times.csv", "stations.csv", "bus_routes.csv", "bus_segments.csv", "transfers.csv")]
+    if official_file(day):
+        inputs.append(official_file(day))
     fresh = os.path.exists(path) and all(os.path.getmtime(path) > os.path.getmtime(f) for f in inputs)
     if fresh and not rebuild:
         with open(path, "rb") as f:

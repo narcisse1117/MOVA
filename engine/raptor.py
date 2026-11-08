@@ -15,6 +15,7 @@ ACCESS_M = 800                          # 출발·도착에서 역·정류장까
 WALK_MPS = 1.1
 DETOUR = 1.3
 RAIL_EXIT_SEC = 120
+MIN_GAIN_SEC = 300
 
 
 def nearby(net, lat, lon, radius=ACCESS_M):
@@ -74,7 +75,8 @@ def query(net, origin, dest, t0, max_legs=MAX_LEGS):
                 rt = prev_ready[s]
                 if rt < INF and (trip < 0 or rt <= D[trip, i]):
                     t = int(np.searchsorted(D[:, i], rt, side="left"))
-                    if t < len(D) and (trip < 0 or t < trip):
+                    # 막힌 운행(단축 운행으로 이 정류장을 안 지나는 운행)은 탈 수 없다
+                    if t < len(D) and D[t, i] < INF and (trip < 0 or t < trip):
                         trip, board = t, i
         # 갈아타기: 같은 곳 + 걷기 연결
         nxt = ready[k]
@@ -101,7 +103,8 @@ def query(net, origin, dest, t0, max_legs=MAX_LEGS):
         if not cand:
             continue
         total, s = min(cand)
-        if total < best_total:
+        # 한 번 더 갈아타는 경로는 MIN_GAIN_SEC 이상 빨라야 보여준다
+        if total < best_total - (MIN_GAIN_SEC if results else 0):
             best_total = total
             results.append({"legs_count": k, "arrive": int(total),
                             "legs": reconstruct(net, k, s, p_arr, p_ready, arr, egress[s], t0)})
