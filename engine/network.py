@@ -25,7 +25,7 @@ ENGINE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(ENGINE)
 PREP_OUT = os.path.join(ROOT, "prep", "out")
 CACHE = os.path.join(ENGINE, "cache")
-CACHE_VERSION = 9
+CACHE_VERSION = 10
 DATA = os.path.join(ROOT, "데이터")
 OFFICIAL_BLEND_SEC = 7200
 OUTLIER_SEC = 1800
@@ -59,6 +59,7 @@ class Route:
     board_slack: int = 0      # 가상 운행을 타려면 이만큼 일찍 정류장에 있어야 한다 (버스: 배차 간격의 절반)
     exact_first: bool = False # 첫 운행이 공식 시각 (여유 없이 탈 수 있음)
     exact_last: bool = False  # 마지막 운행이 공식 시각
+    stop_seq: np.ndarray = None  # 버스: 정류장마다 노선 순서 번호 (실시간 API의 ord)
 
 
 @dataclass
@@ -337,7 +338,7 @@ def load_bus(net, day):
                                 labels, headway_min=float(hw), route_id=r.route_id,
                                 board_slack=int(hw * 60 * BUS_BOARD_SLACK_RATIO),
                                 exact_first=applied and F is not None and (~np.isnan(F)).sum() >= 1,
-                                exact_last=applied))
+                                exact_last=applied, stop_seq=seq.seq.to_numpy()[keep].astype(np.int32)))
     net.bus_official_routes = n_official
     net.bus_short_turn_routes = n_short_turn[0]
     bus_pts = stops[(stops.has_coord == 1) & (stops.is_virtual == 0)]

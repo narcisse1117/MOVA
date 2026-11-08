@@ -42,6 +42,8 @@ python -m uvicorn server.app:app --reload --port 8000
  "departure_time": "2026-11-10T00:30"}
 ```
 
+출발이 지금부터 20분 안이면 `live: true`이고, 버스 구간에 `realtime`이 붙는다: `status`(`ok`/`later`/`earlier`/`missed`/`ended`/`unknown`), `arrive_in_sec`, `realtime_dep`, `delay_sec`(엔진 예정 대비), `is_last`(막차), `message`, `plate`. 예시: `server/examples/routes_live_now.json`.
+
 응답 `options`: `kind`가 `taxi`(택시 직행) / `transit`(대중교통만, 탈것 수별로 여러 개일 수 있음) / `combo`(조합, `recommended: true`가 추천, `combo_kind`는 `taxi_last` 마지막 택시 / `taxi_first` 처음 택시 / `taxi_both` 양쪽). 각 항목에 `arrival`, `duration_min`, `fare`, `fare_detail{transit, taxi}`, `legs`.
 
 ### `POST /api/deadline`
@@ -72,5 +74,5 @@ python -m uvicorn server.app:app --reload --port 8000
 
 - 택시를 탈 사람을 직접 고르기 (지금은 막차 끊긴 사람 전부), 카카오페이 송금
 - 인증·수정·삭제, 요청 제한
-- 첫 구간 실시간 버스 도착 반영
+- 지하철 실시간, 실시간으로 뒤 구간 시각 다시 계산
 - 배포 (지금은 SQLite 파일 `server/data/mova.db`)

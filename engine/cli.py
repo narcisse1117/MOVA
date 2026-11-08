@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import deadline  # noqa: E402
 import network  # noqa: E402
 import raptor  # noqa: E402
+import realtime  # noqa: E402
 
 
 def parse_place(text):
@@ -45,7 +46,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--from", dest="src", required=True)
     ap.add_argument("--to", dest="dst", required=True)
-    ap.add_argument("--time", required=True)
+    ap.add_argument("--time", help="HH:MM. 빼면 지금 (실시간 반영)")
     ap.add_argument("--day", default="WD", choices=["WD", "SAT", "HOL"])
     ap.add_argument("--rebuild", action="store_true")
     ap.add_argument("--deadline", action="store_true", help="--time 이후 몇 시까지 출발하면 대중교통으로 갈 수 있는지")
@@ -54,6 +55,11 @@ def main():
     t = time.time()
     net = network.load(a.day, rebuild=a.rebuild)
     load_s = time.time() - t
+    live = a.time is None
+    if live:
+        import datetime as _dt
+        n = _dt.datetime.now()
+        a.time = f"{n.hour:02d}:{n.minute:02d}"
     (o, oname), (d, dname), t0 = parse_place(a.src), parse_place(a.dst), parse_time(a.time)
     t = time.time()
     if a.deadline:
@@ -61,7 +67,9 @@ def main():
         print(f"{oname} → {dname}, {a.day} {network.fmt(t0)} 이후 출발 마감 (탐색 {time.time() - t:.1f}초)")
         print(deadline.describe(res))
         return
-    res = raptor.plan(net, o, d, t0)
+    res = raptor.plan(net, o, d, t0, live=live)
+    if live:
+        realtime.annotate_plan(res, t0)
     q_s = time.time() - t
     print(f"{oname} → {dname}, {a.day} {network.fmt(t0)} 출발 (노선망 {load_s:.1f}초, 탐색 {q_s:.2f}초)")
     print(raptor.describe_plan(res))

@@ -150,6 +150,10 @@ def reconstruct(net, k, s, p_arr, p_ready, arr, egress_w, t0, last_leg=None):
                "to": net.stop_name[s], "arr": int(r.arr[trip, a]), "stops": a - b}
         if r.kind == "bus":
             leg["headway_min"] = r.headway_min
+            leg["route_id"] = r.route_id
+            leg["board_stop_id"] = net.stop_id[bs]
+            if r.stop_seq is not None:
+                leg["board_seq"] = int(r.stop_seq[b])
         d = float(np.linalg.norm(xy[bs] - xy[s]))
         if not np.isnan(d):
             k_detour = fares.TRANSIT["rail_detour"] if r.kind == "rail" else fares.TRANSIT["bus_detour"]
@@ -390,8 +394,16 @@ def describe_leg(l):
         return (f"  택시{src} {l['from']} {fmt(l['dep'])} → {l['to']} {fmt(l['arr'])} "
                 f"(호출 대기 {l['wait_sec'] // 60}분 뒤 출발, {l['dist_m'] / 1000:.1f}km, {l['fare']:,}원 / {lo:,}~{hi:,}원)")
     extra = f", 배차 {l['headway_min']:.0f}분" if l["type"] == "bus" else ""
+    rt = ""
+    if l.get("realtime"):
+        x = l["realtime"]
+        if x["status"] in ("ok", "later", "earlier"):
+            rt = (f"  ← 실시간 {x['arrive_in_sec'] // 60}분 {x['arrive_in_sec'] % 60}초 뒤 ({fmt(x['realtime_dep'])})"
+                  f"{' 막차' if x['is_last'] else ''}, 예정보다 {x['delay_sec'] // 60:+d}분 [{x['status']}]")
+        else:
+            rt = f"  ← 실시간 [{x['status']}] {x.get('message', '')}"
     return (f"  {'지하철' if l['type'] == 'rail' else '버스'} {l['line']} [{l['trip']}{extra}] "
-            f"{l['from']} {fmt(l['dep'])} → {l['to']} {fmt(l['arr'])} ({l['stops']}정거장)")
+            f"{l['from']} {fmt(l['dep'])} → {l['to']} {fmt(l['arr'])} ({l['stops']}정거장){rt}")
 
 
 def describe_plan(p):

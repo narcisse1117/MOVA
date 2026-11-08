@@ -29,6 +29,7 @@ import deadline as deadline_mod  # noqa: E402
 import groups as groups_mod  # noqa: E402
 import network  # noqa: E402
 import raptor  # noqa: E402
+import realtime  # noqa: E402
 
 with open(os.path.join(ROOT, "config", "app.json"), encoding="utf-8") as f:
     APP_CFG = json.load(f)
@@ -135,6 +136,11 @@ def leg_json(leg, day):
                     "stops": leg["stops"]})
         if leg["type"] == "bus":
             out["headway_min"] = leg["headway_min"]
+            if leg.get("realtime"):
+                rt = dict(leg["realtime"])
+                if "realtime_dep" in rt:
+                    rt["realtime_dep"] = to_iso(day, rt["realtime_dep"])
+                out["realtime"] = rt
         if "dist_m" in leg:
             out["distance_m"] = leg["dist_m"]
     return out
@@ -167,8 +173,12 @@ def routes(req: RouteRequest):
     """F1·F2: 택시 직행 / 대중교통만 / 대중교통 + 택시 조합."""
     day, t0, dtype = service_day(req.departure_time)
     net = get_net(dtype)
-    p = raptor.plan(net, (req.origin.lat, req.origin.lng), (req.destination.lat, req.destination.lng), t0,
-                    live=is_live(req.departure_time))
+    live = is_live(req.departure_time)
+    p = raptor.plan(net, (req.origin.lat, req.origin.lng), (req.destination.lat, req.destination.lng), t0, live=live)
+    if live:
+        # 첫 버스 실시간: 지금 시각을 운행일 기준 초로
+        _, now_sec, _ = service_day(dt.datetime.now(KST))
+        realtime.annotate_plan(p, now_sec)
     d = p["taxi_direct"]
     options = [{"kind": "taxi", "arrival": to_iso(day, d["arrive"]), "duration_min": (d["arrive"] - t0) // 60,
                 "fare": d["fare"], "rides": 0, "fare_detail": {"transit": 0, "taxi": d["fare"]},
@@ -180,7 +190,7 @@ def routes(req: RouteRequest):
                           "source": d.get("source", "estimate"), "estimated": d.get("source", "estimate") == "estimate"}]}]
     options += [option_json("transit", r, day, t0) for r in p["transit"]]
     options += [option_json("combo", c, day, t0) for c in p["combo"]]
-    return {"service_day": day.isoformat(), "day_type": dtype, "departure": to_iso(day, t0),
+    return {"service_day": day.isoformat(), "day_type": dtype, "departure": to_iso(day, t0), "live": live,
             "options": options,
             "notes": ["택시 구간의 source: naver_live(네이버 실시간 경로), naver(네이버 경로 거리 + 심야 속도), estimate(직선거리 추정)",
                       "버스는 막차·첫차만 공식 시각이고 그 사이는 배차 간격 기반 추정입니다"]}
