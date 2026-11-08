@@ -75,15 +75,24 @@
 - **대비책:** ~~11월 3주 말까지 안 맞으면 ODsay 전환~~ → 2026-11-08 네이버 대조로 지하철·일반버스 일치 확인, 전환 안 함.
 - **기술 스택 (2026-11-08 기준):** 휴대폰 기준 웹앱(PWA 고려). 프론트는 팀원이 **피그마로 디자인 → React로 개발** (Vite 또는 Next.js, 배포는 Vercel 유력). 백엔드는 **FastAPI(Python)** + 경로 엔진(`engine/`), **AWS EC2 서울 (t3.small 2GB, Ubuntu 24.04)**에 배포하기로 결정 (2026-11-08). 절차는 `deploy/README.md`, 계정 만들기는 사용자
 
+## 서버 (2026-11-08 배포)
+
+- **주소:** https://32.237.22.34.sslip.io (API 문서 `/docs`). AWS EC2 **시드니**(ap-southeast-2), t4g.small(Arm, 2GB), Ubuntu 24.04, 탄력적 IP 32.237.22.34
+- AWS **무료 플랜**(크레딧 $100, 2027-05-08까지)이라 청구 0원. 무료 플랜은 리전이 시드니로 고정 → 서울을 쓰려면 유료 업그레이드. 시드니에서 버스 API·네이버 API 모두 정상 확인
+- 접속: `ssh -i C:\Users\osh\.ssh\mova.pem ubuntu@32.237.22.34` (키는 레포 밖에 보관)
+- 코드 업데이트: 서버에서 `cd ~/MOVA && git pull && sudo systemctl restart mova` (GitHub Deploy key `ec2-sydney`, 읽기 전용)
+- 데이터(`prep/out`, `데이터/` 키·공식 시각)는 GitHub에 없어서 scp로 올림 (`deploy/upload.ps1`)
+- cron: 월·토 14:00 공식 막차, 수·금 22:50 심야버스 수집. 2026-11-08(일) 밤 심야버스 수집은 서버에서 실행 중
+- 자세한 건 `deploy/README.md`
+
 ## 이번 주 할 일 (2026-11-08 ~ 11-14)
 
 | 날짜 | 할 일 | 누가 |
 |---|---|---|
-| 11/8(일) 밤 | 심야버스 수집 (23:00~04:30 자동). 컴퓨터·Claude Code 켜 두기, 절전 끄기 | 사용자 |
-| 11/9(월) 낮 | `python prep/fetch_bus_times.py` (평일 공식 막차) / 수집한 심야버스 기록으로 실제 시간표 만들기 | 사용자 / Claude |
-| 11/11(수) 또는 11/12(목) 밤 | `python prep/collect_night_bus.py` (평일 밤 심야버스) | 사용자 |
-| 11/13(금) 밤 | `python prep/collect_night_bus.py` (선택, 금요일 밤 교통) | 사용자 |
-| 11/14(토) 낮 | `python prep/fetch_bus_times.py` (토요일 공식 막차) | 사용자 |
+| 11/8(일) 밤 | 심야버스 수집 (서버에서 23:00~04:30 자동) | 서버 |
+| 11/9(월) | 수집한 심야버스 기록(서버 `데이터/night_bus_raw_*.csv`)으로 실제 시간표 만들기 | Claude |
+| 11/11(수)·11/13(금) 밤 | 심야버스 수집 (서버 cron 자동) | 서버 |
+| 11/9(월)·11/14(토) 14:00 | 공식 막차 수집 (서버 cron 자동) | 서버 |
 | 이번 주 안 | 팀원과 API 형식·기술 스택 정하기 (`server/README.md`, `server/examples/`), 대중교통 요금 확인, 토스 링크 형식 확인 | 사용자 |
 
 ## 5. 다음 할 일
