@@ -61,6 +61,13 @@ def service_day(when: dt.datetime):
     return day, sec, dtype
 
 
+def is_live(when: dt.datetime) -> bool:
+    """출발 시각이 지금부터 20분 안이면 네이버 실시간 소요 시간을 쓴다."""
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=KST)
+    return abs((when - dt.datetime.now(KST)).total_seconds()) <= 20 * 60
+
+
 def to_iso(day: dt.date, sec: int) -> str:
     t = dt.datetime.combine(day, dt.time(0), tzinfo=KST) + dt.timedelta(seconds=int(sec))
     return t.isoformat(timespec="seconds")
@@ -119,7 +126,8 @@ def leg_json(leg, day):
     elif leg["type"] == "taxi":
         out.update({"departure": to_iso(day, leg["dep"]), "arrival": to_iso(day, leg["arr"]),
                     "wait_sec": leg["wait_sec"], "drive_sec": leg["drive_sec"], "distance_m": leg["dist_m"],
-                    "fare": leg["fare"], "fare_range": list(leg["fare_range"]), "estimated": True})
+                    "fare": leg["fare"], "fare_range": list(leg["fare_range"]),
+                    "source": leg.get("source", "estimate"), "estimated": leg.get("source", "estimate") == "estimate"})
     else:
         out["type"] = "subway" if leg["type"] == "rail" else "bus"
         out.update({"line": leg["line"],
@@ -159,7 +167,8 @@ def routes(req: RouteRequest):
     """F1·F2: 택시 직행 / 대중교통만 / 대중교통 + 택시 조합."""
     day, t0, dtype = service_day(req.departure_time)
     net = get_net(dtype)
-    p = raptor.plan(net, (req.origin.lat, req.origin.lng), (req.destination.lat, req.destination.lng), t0)
+    p = raptor.plan(net, (req.origin.lat, req.origin.lng), (req.destination.lat, req.destination.lng), t0,
+                    live=is_live(req.departure_time))
     d = p["taxi_direct"]
     options = [{"kind": "taxi", "arrival": to_iso(day, d["arrive"]), "duration_min": (d["arrive"] - t0) // 60,
                 "fare": d["fare"], "rides": 0, "fare_detail": {"transit": 0, "taxi": d["fare"]},
@@ -167,12 +176,13 @@ def routes(req: RouteRequest):
                 "legs": [{"type": "taxi", "from": req.origin.label or "출발지", "to": req.destination.label or "도착지",
                           "departure": to_iso(day, t0 + d["wait_sec"]), "arrival": to_iso(day, d["arrive"]),
                           "wait_sec": d["wait_sec"], "drive_sec": d["drive_sec"], "distance_m": d["dist_m"],
-                          "fare": d["fare"], "fare_range": list(d["fare_range"]), "estimated": True}]}]
+                          "fare": d["fare"], "fare_range": list(d["fare_range"]),
+                          "source": d.get("source", "estimate"), "estimated": d.get("source", "estimate") == "estimate"}]}]
     options += [option_json("transit", r, day, t0) for r in p["transit"]]
     options += [option_json("combo", c, day, t0) for c in p["combo"]]
     return {"service_day": day.isoformat(), "day_type": dtype, "departure": to_iso(day, t0),
             "options": options,
-            "notes": ["택시 거리·시간·요금은 직선거리 기반 추정입니다",
+            "notes": ["택시 구간의 source: naver_live(네이버 실시간 경로), naver(네이버 경로 거리 + 심야 속도), estimate(직선거리 추정)",
                       "버스는 막차·첫차만 공식 시각이고 그 사이는 배차 간격 기반 추정입니다"]}
 
 
@@ -260,7 +270,7 @@ def taxi_groups_json(g, members, deadlines, leave_at):
     if not need:
         return [], []
     taxis = groups_mod.plan_taxis((g["meet_lat"], g["meet_lng"]),
-                                  [(m["home_lat"], m["home_lng"]) for m in need], t_leave)
+                                  [(m["home_lat"], m["home_lng"]) for m in need], t_leave, live=is_live(leave_at))
     out, transfers = [], []
     for x in taxis:
         payer = need[x["payer"]]
@@ -277,7 +287,8 @@ def taxi_groups_json(g, members, deadlines, leave_at):
                                   "to_member_id": payer["id"], "to": payer["nickname"], "amount": share,
                                   "toss_link": toss_link(payer["toss_id"], share)})
         out.append({"riders": riders, "total_fare": x["total_fare"], "payer_member_id": payer["id"],
-                    "payer": payer["nickname"], "estimated": True})
+                    "payer": payer["nickname"], "source": x.get("source", "estimate"),
+                    "estimated": x.get("source", "estimate") == "estimate"})
     return out, transfers
 
 
@@ -313,4 +324,5 @@ def get_group(gid: str, leave_at: Optional[dt.datetime] = None):
             "members": out, "leave_at": leave_at.isoformat() if leave_at else None,
             "taxi_groups": taxi_groups, "settlement": transfers,
             "notes": ["leave_at을 주면 그때 막차(지하철·일반버스)가 끊긴 사람끼리 택시를 묶습니다",
-                      "택시 요금은 직선거리 기반 추정이고, 정산은 내리는 곳 기준(구간 요금을 그 구간 탑승자끼리 나눔)입니다"]}
+                      "택시 요금은 네이버 실제 경로(경유지 포함) 기준이고(키가 없거나 한도를 넘으면 추정), 정산은 내리는 곳 기준입니다",
+                      "solo_fare(혼자 탔을 때)는 추정값이라 saving은 참고용입니다"]}

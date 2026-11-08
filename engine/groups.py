@@ -11,7 +11,9 @@
   미터기는 한 번 켜고 끝까지 간다. 사람이 내릴 때마다 구간을 나누고, 구간 요금(그때 미터기 - 앞 구간 미터기)을
   그 구간에 타고 있던 사람끼리 똑같이 나눈다. 택시비는 마지막에 내리는 사람이 내고, 나머지는 그 사람에게 보낸다.
 
-거리·시간은 fares.taxi_trip()과 같은 추정(직선거리 × 우회 계수, 시간대별 속도)을 쓴다.
+묶음을 고를 때는 fares.taxi_trip()과 같은 추정(직선거리 × 우회 계수, 시간대별 속도)을 쓰고,
+묶음이 정해진 뒤 택시마다 네이버 실제 경로(경유지 포함, 1건)로 미터기·정산을 다시 계산한다.
+혼자 탔을 때 요금(solo_fares)은 추정값이라 절약액은 참고용이다.
 """
 import itertools
 import math
@@ -70,7 +72,7 @@ def settle(stops):
     return out, payer
 
 
-def plan_taxis(meeting, homes, t_start):
+def plan_taxis(meeting, homes, t_start, live=False):
     """meeting: (lat, lon), homes: [(lat, lon), ...], t_start: 운행일 기준 초.
     결과: 택시마다 내리는 순서·미터기·몫·누가 내는지. 혼자 탈 때와 비교한 절약액."""
     if not homes:
@@ -104,6 +106,18 @@ def plan_taxis(meeting, homes, t_start):
     taxis = []
     for g in groups.values():
         stops = g["stops"]
+        # 묶음이 정해지면 네이버 실제 경로(경유지 포함)로 미터기를 다시 계산한다. 택시 한 대당 1건
+        pts = [tuple(meeting)] + [tuple(homes[s["member"]]) for s in stops]
+        r = fares.taxi_real(pts, t_start, live=live)
+        source = "estimate"
+        if r is not None:
+            source = "naver_live" if r["live"] else "naver"
+            stops = [dict(s, meter=r["leg_meter"][k], dist_m=r["leg_dist_m"][k],
+                          arrive=int(t_start + r["wait_sec"] + r["leg_drive_sec"][k] + k * DROP_STOP_SEC))
+                     for k, s in enumerate(stops)]
+            for s in stops:
+                if len(stops) == 1:
+                    solo[s["member"]] = s
         shares, payer = settle(stops)
         taxis.append({
             "order": [s["member"] for s in stops],
@@ -112,6 +126,7 @@ def plan_taxis(meeting, homes, t_start):
             "payer": payer,
             "shares": shares,
             "solo_fares": {s["member"]: solo[s["member"]]["meter"] for s in stops},
+            "source": source,
         })
     taxis.sort(key=lambda x: -len(x["order"]))
     return taxis

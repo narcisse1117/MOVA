@@ -11,6 +11,7 @@ python -m uvicorn server.app:app --reload --port 8000
 
 - 레포 최상위 폴더에서 실행한다. `prep/out/` 결과와 `데이터/`(공식 버스 시각)가 있어야 한다
 - API 문서(자동 생성): http://localhost:8000/docs
+- 네이버 키: `데이터/naver_key.txt` (첫 줄 Client ID, 둘째 줄 Secret). 없으면 택시는 추정으로만 계산한다
 - 요일 유형(평일·토·공휴일)마다 첫 요청 때 노선망을 읽는다 (캐시가 있으면 1초 안, 없으면 40초쯤)
 - 응답 예시: `server/examples/*.json` (`python server/make_examples.py`로 다시 만든다)
 
@@ -19,7 +20,7 @@ python -m uvicorn server.app:app --reload --port 8000
 - **좌표:** `{"lat": 37.55, "lng": 126.92, "label": "홍대입구역"}`. `label`은 화면 표시용이라 빼도 된다. 1차 범위는 서울
 - **시각:** 요청은 `2026-11-09T23:30`처럼 서울 시각. 응답은 `2026-11-10T00:30:00+09:00`
 - **운행일:** 03시 전은 전날 운행일로 본다. 응답의 `service_day`, `day_type`(`WD`/`SAT`/`HOL`)으로 알 수 있다
-- **구간(`legs`) 종류:** `walk`(걷기, `duration_sec`), `subway`, `bus`(`line`, `departure`, `arrival`, `stops`, 버스는 `headway_min`), `taxi`(`wait_sec`, `drive_sec`, `distance_m`, `fare`, `fare_range`, `estimated`)
+- **구간(`legs`) 종류:** `walk`(걷기, `duration_sec`), `subway`, `bus`(`line`, `departure`, `arrival`, `stops`, 버스는 `headway_min`), `taxi`(`wait_sec`, `drive_sec`, `distance_m`, `fare`, `fare_range`, `source`: `naver_live` 네이버 실시간 / `naver` 네이버 거리 + 심야 속도 / `estimate` 직선거리 추정)
 
 ## API
 
@@ -64,7 +65,7 @@ python -m uvicorn server.app:app --reload --port 8000
 - 한 차 4명까지. 합쳤을 때 택시비가 가장 많이 줄어드는 묶음부터 합친다. 혼자 갈 때보다 20분 넘게 늦어지는 사람이 생기면 안 합친다
 - 내리는 순서는 가능한 순서를 모두 비교해 택시비가 가장 싼 순서
 - 정산: 미터기를 구간(사람이 내릴 때마다)으로 나누고, 구간 요금은 그 구간에 타고 있던 사람끼리 똑같이 나눈다. 1인 몫은 10원 단위, 남는 돈은 내는 사람 몫
-- 택시 거리·요금은 직선거리 기반 추정 (`estimated: true`)
+- 택시마다 네이버 실제 경로(모임 장소 → 집들, 경유지)로 미터기를 계산한다 (`source`). `solo_fare`는 추정이라 `saving`은 참고용
 - 토스 `toss.me/아이디/금액` 링크 형식은 실제 앱에서 한 번 확인해야 한다. 카카오페이는 금액을 넣은 송금 링크를 만들 수 없어서 아직 없다
 
 ## 아직 없는 것

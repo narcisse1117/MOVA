@@ -10,6 +10,8 @@ import os
 
 import numpy as np
 
+import naver
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 with open(os.path.join(ROOT, "config", "fares.json"), encoding="utf-8") as _f:
     CFG = json.load(_f)
@@ -82,3 +84,27 @@ def transit_fare(legs):
         if km > TRANSIT["extra_until_km"]:
             extra += math.ceil((km - TRANSIT["extra_until_km"]) / 8) * TRANSIT["extra_per_8km_after"]
     return int(base + extra)
+
+
+def taxi_real(points, start_sec, live=False):
+    """네이버 실제 경로로 택시 구간 다시 계산. points: [(lat, lng), ...]. 못 부르면 None.
+    live=True면 네이버의 지금 교통 소요 시간을 쓰고, 아니면 거리 ÷ 그 시각대 속도로 시간을 구한다."""
+    r = naver.route(points, need_fresh_duration=live)
+    if r is None:
+        return None
+    hour = (int(start_sec) // 3600) % 24
+    wait = int(_by_hour(EST["pickup_wait_min_by_hour"], np.array([hour]))[0] * 60)
+    speed = float(_by_hour(EST["speed_kmh_by_hour"], np.array([hour]))[0]) / 3.6
+    legs = []
+    for d, t in r["legs"]:
+        legs.append((d, t if (live and r["fresh"]) else d / speed))
+    cum_d = np.cumsum([l[0] for l in legs])
+    cum_t = np.cumsum([l[1] for l in legs])
+    meters = taxi_fare(cum_d, cum_t, np.full(len(legs), start_sec + wait))
+    fare = int(meters[-1])
+    k = CFG["naver"]["real_fare_range"]
+    rnd = TAXI["round_to"]
+    return {"wait_sec": wait, "dist_m": int(cum_d[-1]), "drive_sec": int(round(cum_t[-1])), "fare": fare,
+            "fare_lo": int(round(fare * (1 - k) / rnd) * rnd), "fare_hi": int(round(fare * (1 + k) / rnd) * rnd),
+            "leg_dist_m": [int(x) for x in cum_d], "leg_drive_sec": [int(round(x)) for x in cum_t],
+            "leg_meter": [int(x) for x in meters], "live": bool(live and r["fresh"])}

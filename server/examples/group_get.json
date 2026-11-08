@@ -20,7 +20,7 @@
     "query": "GET /api/groups/{id}?leave_at=2026-12-19T01:00"
   },
   "response": {
-    "id": "0rEYZG6y",
+    "id": "emJPDogb",
     "name": "송년회",
     "date": "2026-12-18",
     "day_type": "WD",
@@ -31,7 +31,7 @@
     },
     "members": [
       {
-        "id": "2Z22UI--",
+        "id": "VDM19fpa",
         "nickname": "지영",
         "home": {
           "lat": 37.484201,
@@ -129,7 +129,7 @@
         }
       },
       {
-        "id": "WBjIAK_N",
+        "id": "k8j4nOLe",
         "nickname": "영희",
         "home": {
           "lat": 37.4825,
@@ -227,7 +227,7 @@
         }
       },
       {
-        "id": "JyoG4VYn",
+        "id": "Ms3thljE",
         "nickname": "민수",
         "home": {
           "lat": 37.655128,
@@ -362,7 +362,7 @@
         }
       },
       {
-        "id": "wS4CN6uA",
+        "id": "o1kmJUak",
         "nickname": "수진",
         "home": {
           "lat": 37.668,
@@ -491,7 +491,7 @@
         }
       },
       {
-        "id": "EyJ-69aP",
+        "id": "qVWYCa5U",
         "nickname": "철수",
         "home": {
           "lat": 37.638052,
@@ -620,7 +620,7 @@
         }
       },
       {
-        "id": "Lbk1zzhl",
+        "id": "e5bFWTo-",
         "nickname": "현우",
         "home": {
           "lat": 37.557192,
@@ -754,111 +754,114 @@
       {
         "riders": [
           {
-            "member_id": "EyJ-69aP",
+            "member_id": "qVWYCa5U",
             "nickname": "철수",
-            "arrival": "2026-12-19T01:45:14+09:00",
-            "meter_at_dropoff": 28000,
-            "share": 9330,
-            "solo_fare": 28000,
-            "saving": 18670
+            "arrival": "2026-12-19T01:46:10+09:00",
+            "meter_at_dropoff": 28500,
+            "share": 9500,
+            "solo_fare": 30600,
+            "saving": 21100
           },
           {
-            "member_id": "JyoG4VYn",
+            "member_id": "Ms3thljE",
             "nickname": "민수",
-            "arrival": "2026-12-19T01:55:15+09:00",
-            "meter_at_dropoff": 33400,
-            "share": 12030,
-            "solo_fare": 31200,
-            "saving": 19170
+            "arrival": "2026-12-19T01:55:02+09:00",
+            "meter_at_dropoff": 33300,
+            "share": 11900,
+            "solo_fare": 34000,
+            "saving": 22100
           },
           {
-            "member_id": "wS4CN6uA",
+            "member_id": "o1kmJUak",
             "nickname": "수진",
-            "arrival": "2026-12-19T02:01:23+09:00",
-            "meter_at_dropoff": 36500,
-            "share": 15140,
-            "solo_fare": 33000,
-            "saving": 17860
+            "arrival": "2026-12-19T02:02:00+09:00",
+            "meter_at_dropoff": 36800,
+            "share": 15400,
+            "solo_fare": 36100,
+            "saving": 20700
           }
         ],
-        "total_fare": 36500,
-        "payer_member_id": "wS4CN6uA",
+        "total_fare": 36800,
+        "payer_member_id": "o1kmJUak",
         "payer": "수진",
-        "estimated": true
+        "source": "naver",
+        "estimated": false
       },
       {
         "riders": [
           {
-            "member_id": "WBjIAK_N",
+            "member_id": "k8j4nOLe",
             "nickname": "영희",
-            "arrival": "2026-12-19T01:26:03+09:00",
-            "meter_at_dropoff": 16400,
-            "share": 5470,
-            "solo_fare": 16400,
-            "saving": 10930
+            "arrival": "2026-12-19T01:25:33+09:00",
+            "meter_at_dropoff": 16100,
+            "share": 5370,
+            "solo_fare": 17800,
+            "saving": 12430
           },
           {
-            "member_id": "2Z22UI--",
+            "member_id": "VDM19fpa",
             "nickname": "지영",
-            "arrival": "2026-12-19T01:29:41+09:00",
-            "meter_at_dropoff": 18000,
-            "share": 6270,
-            "solo_fare": 17900,
-            "saving": 11630
+            "arrival": "2026-12-19T01:30:28+09:00",
+            "meter_at_dropoff": 18500,
+            "share": 6570,
+            "solo_fare": 19300,
+            "saving": 12730
           },
           {
-            "member_id": "Lbk1zzhl",
+            "member_id": "e5bFWTo-",
             "nickname": "현우",
-            "arrival": "2026-12-19T01:50:38+09:00",
-            "meter_at_dropoff": 29900,
-            "share": 18160,
-            "solo_fare": 21400,
-            "saving": 3240
+            "arrival": "2026-12-19T01:53:17+09:00",
+            "meter_at_dropoff": 31600,
+            "share": 19660,
+            "solo_fare": 23200,
+            "saving": 3540
           }
         ],
-        "total_fare": 29900,
-        "payer_member_id": "Lbk1zzhl",
+        "total_fare": 31600,
+        "payer_member_id": "e5bFWTo-",
         "payer": "현우",
-        "estimated": true
+        "source": "naver",
+        "estimated": false
       }
     ],
     "settlement": [
       {
-        "from_member_id": "EyJ-69aP",
+        "from_member_id": "qVWYCa5U",
         "from": "철수",
-        "to_member_id": "wS4CN6uA",
+        "to_member_id": "o1kmJUak",
         "to": "수진",
-        "amount": 9330,
-        "toss_link": "https://toss.me/sujin_toss/9330"
+        "amount": 9500,
+        "toss_link": "https://toss.me/sujin_toss/9500"
       },
       {
-        "from_member_id": "JyoG4VYn",
+        "from_member_id": "Ms3thljE",
         "from": "민수",
-        "to_member_id": "wS4CN6uA",
+        "to_member_id": "o1kmJUak",
         "to": "수진",
-        "amount": 12030,
-        "toss_link": "https://toss.me/sujin_toss/12030"
+        "amount": 11900,
+        "toss_link": "https://toss.me/sujin_toss/11900"
       },
       {
-        "from_member_id": "WBjIAK_N",
+        "from_member_id": "k8j4nOLe",
         "from": "영희",
-        "to_member_id": "Lbk1zzhl",
+        "to_member_id": "e5bFWTo-",
         "to": "현우",
-        "amount": 5470,
-        "toss_link": "https://toss.me/hyunwoo_toss/5470"
+        "amount": 5370,
+        "toss_link": "https://toss.me/hyunwoo_toss/5370"
       },
       {
-        "from_member_id": "2Z22UI--",
+        "from_member_id": "VDM19fpa",
         "from": "지영",
-        "to_member_id": "Lbk1zzhl",
+        "to_member_id": "e5bFWTo-",
         "to": "현우",
-        "amount": 6270,
-        "toss_link": "https://toss.me/hyunwoo_toss/6270"
+        "amount": 6570,
+        "toss_link": "https://toss.me/hyunwoo_toss/6570"
       }
     ],
     "notes": [
       "leave_at을 주면 그때 막차(지하철·일반버스)가 끊긴 사람끼리 택시를 묶습니다",
-      "택시 요금은 직선거리 기반 추정이고, 정산은 내리는 곳 기준(구간 요금을 그 구간 탑승자끼리 나눔)입니다"
+      "택시 요금은 네이버 실제 경로(경유지 포함) 기준이고(키가 없거나 한도를 넘으면 추정), 정산은 내리는 곳 기준입니다",
+      "solo_fare(혼자 탔을 때)는 추정값이라 saving은 참고용입니다"
     ]
   }
 }

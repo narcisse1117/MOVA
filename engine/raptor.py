@@ -179,11 +179,26 @@ def describe(res, t0):
 
 FIRST_TAXI_CAPS = [7000, 10000, 14000, 20000]   # 처음 구간 택시비 상한별로 따로 찾는다
 FIRST_TAXI_MIN_M, FIRST_TAXI_MAX_M = 1000, 15000
+FIRST_TAXI_BUFFER_SEC = 180     # 택시에서 내려 열차를 탈 때 여유 (호출 대기·교통이 들쭉날쭉하다)
 
 
-def _taxi_leg(frm, to, start, t, i=None):
+def stop_ll(net):
+    """정류장 번호 → (위도, 경도). to_xy의 역변환."""
+    if getattr(net, "_stop_ll", None) is None:
+        import math
+        from network import LAT0, R_EARTH
+        xy = stop_coords(net)
+        lat = np.degrees(xy[:, 1] / R_EARTH)
+        lon = np.degrees(xy[:, 0] / (R_EARTH * math.cos(LAT0)))
+        net._stop_ll = np.column_stack([lat, lon])
+    return net._stop_ll
+
+
+def _taxi_leg(frm, to, start, t, i=None, from_ll=None, to_ll=None):
     g = (lambda k: int(t[k][i])) if i is not None else (lambda k: int(t[k]))
-    return {"type": "taxi", "from": frm, "to": to, "dep": start + g("wait_sec"),
+    return {"type": "taxi", "from": frm, "to": to, "dep": start + g("wait_sec"), "start": start,
+            "from_ll": tuple(map(float, from_ll)) if from_ll is not None else None,
+            "to_ll": tuple(map(float, to_ll)) if to_ll is not None else None, "source": "estimate",
             "arr": start + g("wait_sec") + g("drive_sec"), "wait_sec": g("wait_sec"), "drive_sec": g("drive_sec"),
             "dist_m": g("dist_m"), "fare": g("fare"), "fare_range": (g("fare_lo"), g("fare_hi"))}
 
@@ -201,12 +216,12 @@ def first_taxi_access(net, origin, t0, cap):
     t = fares.taxi_trip(d, np.full(len(d), t0))
     out = {}
     for i in np.flatnonzero(t["fare"] <= cap):
-        leg = _taxi_leg("출발지", net.stop_name[rail[i]], t0, t, i)
-        out[int(rail[i])] = (leg["arr"] + RAIL_EXIT_SEC, leg)
+        leg = _taxi_leg("출발지", net.stop_name[rail[i]], t0, t, i, from_ll=origin, to_ll=stop_ll(net)[rail[i]])
+        out[int(rail[i])] = (leg["arr"] + RAIL_EXIT_SEC + FIRST_TAXI_BUFFER_SEC, leg)
     return out
 
 
-def _options_from_search(net, dest, t0, transit, st, max_legs):
+def _options_from_search(net, dest, t0, transit, st, max_legs):  # noqa: C901
     """한 번의 탐색 결과 → 후보 (대중교통으로 끝까지 + 마지막 택시)."""
     opts = []
     for r in transit:
@@ -246,7 +261,7 @@ def _options_from_search(net, dest, t0, transit, st, max_legs):
         if (k, s) in seen:
             continue
         seen.add((k, s))
-        leg = _taxi_leg(net.stop_name[s], "도착지", start, t, j)
+        leg = _taxi_leg(net.stop_name[s], "도착지", start, t, j, from_ll=stop_ll(net)[s], to_ll=dest)
         legs = reconstruct(net, k, s, st["p_arr"], st["p_ready"], st["arr"], 0, t0, last_leg=leg)
         opts.append({"legs_count": k, "arrive": arrive, "legs": legs})
     return opts
@@ -262,7 +277,35 @@ def _price(opt):
     return dict(opt, taxi_fare=taxi, transit_fare=tf, fare=taxi + tf, combo_kind=kind)
 
 
-def plan(net, origin, dest, t0, max_legs=MAX_LEGS):
+def refine_taxi_leg(leg, live):
+    """택시 구간을 네이버 실제 경로로 다시 계산 (제자리에서 바꿈). 성공하면 True."""
+    if not leg.get("from_ll") or not leg.get("to_ll"):
+        return False
+    r = fares.taxi_real([leg["from_ll"], leg["to_ll"]], leg["start"], live=live)
+    if r is None:
+        return False
+    leg.update(wait_sec=r["wait_sec"], dep=leg["start"] + r["wait_sec"], arr=leg["start"] + r["wait_sec"] + r["drive_sec"],
+               drive_sec=r["drive_sec"], dist_m=r["dist_m"], fare=r["fare"], fare_range=(r["fare_lo"], r["fare_hi"]),
+               source="naver_live" if r["live"] else "naver")
+    return True
+
+
+def _refine_option(o, live):
+    """조합 하나의 택시 구간을 실제 경로로. 처음 택시가 늦어져 다음 열차를 놓치면 None."""
+    legs = [dict(l) for l in o["legs"]]
+    for i, l in enumerate(legs):
+        if l["type"] != "taxi":
+            continue
+        refine_taxi_leg(l, live)
+        if i == 0 and len(legs) > 1:
+            nxt = next((x for x in legs[1:] if x["type"] in ("rail", "bus")), None)
+            if nxt is not None and l["arr"] + RAIL_EXIT_SEC + FIRST_TAXI_BUFFER_SEC > nxt["dep"]:
+                return None
+    arrive = legs[-1]["arr"] if legs[-1]["type"] == "taxi" else o["arrive"]
+    return _price(dict(o, legs=legs, arrive=arrive))
+
+
+def plan(net, origin, dest, t0, max_legs=MAX_LEGS, live=False):
     """F1·F2: 택시 직행 / 대중교통만 / 대중교통 + 택시 조합을 함께 낸다.
 
     조합은 세 가지: 마지막 구간 택시(대중교통으로 근처까지), 처음 구간 택시(택시로 막차가 남은 역까지),
@@ -278,7 +321,11 @@ def plan(net, origin, dest, t0, max_legs=MAX_LEGS):
     tr = fares.taxi_trip(np.array([np.linalg.norm(oxy - dxy)]), np.array([t0]))
     direct = {"arrive": int(t0 + tr["wait_sec"][0] + tr["drive_sec"][0]), "fare": int(tr["fare"][0]),
               "fare_range": (int(tr["fare_lo"][0]), int(tr["fare_hi"][0])), "wait_sec": int(tr["wait_sec"][0]),
-              "drive_sec": int(tr["drive_sec"][0]), "dist_m": int(tr["dist_m"][0])}
+              "drive_sec": int(tr["drive_sec"][0]), "dist_m": int(tr["dist_m"][0]), "source": "estimate"}
+    leg = {"from_ll": tuple(origin), "to_ll": tuple(dest), "start": t0}
+    if refine_taxi_leg(leg, live):
+        direct.update(arrive=leg["arr"], fare=leg["fare"], fare_range=leg["fare_range"], wait_sec=leg["wait_sec"],
+                      drive_sec=leg["drive_sec"], dist_m=leg["dist_m"], source=leg["source"])
 
     opts = _options_from_search(net, dest, t0, [], st, max_legs)
     for cap in FIRST_TAXI_CAPS:
@@ -308,13 +355,22 @@ def plan(net, origin, dest, t0, max_legs=MAX_LEGS):
         # 다른 안은 추천과 2,000원 또는 10분 넘게 달라야 보여준다
         others = [o for o in pareto if abs(o["fare"] - pick["fare"]) >= 2000 or abs(o["arrive"] - pick["arrive"]) >= 600]
         chosen = [pick] + others[:1] + others[-1:]
-        seen = set()
-        for o in chosen:
+        # 고른 것만 네이버 실제 경로로 다시 계산한다 (호출 수 절약). 추천도 실제 값으로 다시 고른다
+        refined, seen = [], set()
+        for o in chosen + [x for x in sorted(opts, key=score) if x not in chosen][:2]:
             key = (o["arrive"], o["fare"])
             if key in seen:
                 continue
             seen.add(key)
-            combos.append(dict(o, recommended=o is pick))
+            r = _refine_option(o, live)
+            if r is not None and r["fare"] <= direct["fare"] - save and r["arrive"] < fastest_transit - MIN_GAIN_SEC:
+                refined.append(r)
+        if refined:
+            best = min(refined, key=score)
+            rest = sorted([r for r in refined if r is not best], key=lambda r: r["arrive"])
+            keep = [best] + [r for r in rest if abs(r["fare"] - best["fare"]) >= 2000
+                             or abs(r["arrive"] - best["arrive"]) >= 600][:2]
+            combos = [dict(r, recommended=r is best) for r in keep]
     return {"t0": t0, "taxi_direct": direct, "transit": transit, "combo": combos}
 
 
@@ -323,7 +379,8 @@ def describe_leg(l):
         return f"  걷기 {l['from']} → {l['to']} {l['sec'] // 60}분 {l['sec'] % 60}초"
     if l["type"] == "taxi":
         lo, hi = l["fare_range"]
-        return (f"  택시 {l['from']} {fmt(l['dep'])} → {l['to']} {fmt(l['arr'])} "
+        src = {"naver": " [네이버 경로]", "naver_live": " [네이버 실시간]"}.get(l.get("source"), " [추정]")
+        return (f"  택시{src} {l['from']} {fmt(l['dep'])} → {l['to']} {fmt(l['arr'])} "
                 f"(호출 대기 {l['wait_sec'] // 60}분 뒤 출발, {l['dist_m'] / 1000:.1f}km, {l['fare']:,}원 / {lo:,}~{hi:,}원)")
     extra = f", 배차 {l['headway_min']:.0f}분" if l["type"] == "bus" else ""
     return (f"  {'지하철' if l['type'] == 'rail' else '버스'} {l['line']} [{l['trip']}{extra}] "
@@ -333,7 +390,8 @@ def describe_leg(l):
 def describe_plan(p):
     t0, out = p["t0"], []
     d = p["taxi_direct"]
-    out.append(f"[택시 직행] 도착 {fmt(d['arrive'])} (총 {(d['arrive'] - t0) // 60}분, 대기 {d['wait_sec'] // 60}분 포함) "
+    src = {"naver": " 네이버 경로", "naver_live": " 네이버 실시간"}.get(d.get("source"), " 추정")
+    out.append(f"[택시 직행{src}] 도착 {fmt(d['arrive'])} (총 {(d['arrive'] - t0) // 60}분, 대기 {d['wait_sec'] // 60}분 포함) "
                f"{d['dist_m'] / 1000:.1f}km, {d['fare']:,}원 ({d['fare_range'][0]:,}~{d['fare_range'][1]:,}원)")
     if p["transit"]:
         for r in p["transit"]:

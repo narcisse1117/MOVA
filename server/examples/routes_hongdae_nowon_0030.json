@@ -19,17 +19,17 @@
     "options": [
       {
         "kind": "taxi",
-        "arrival": "2026-11-10T01:23:44+09:00",
-        "duration_min": 53,
-        "fare": 29000,
+        "arrival": "2026-11-10T01:31:29+09:00",
+        "duration_min": 61,
+        "fare": 33300,
         "rides": 0,
         "fare_detail": {
           "transit": 0,
-          "taxi": 29000
+          "taxi": 33300
         },
         "fare_range": [
-          26300,
-          32600
+          30600,
+          36000
         ],
         "recommended": false,
         "legs": [
@@ -38,16 +38,17 @@
             "from": "홍대입구역",
             "to": "노원역",
             "departure": "2026-11-10T00:40:00+09:00",
-            "arrival": "2026-11-10T01:23:44+09:00",
+            "arrival": "2026-11-10T01:31:29+09:00",
             "wait_sec": 600,
-            "drive_sec": 2624,
-            "distance_m": 21865,
-            "fare": 29000,
+            "drive_sec": 3089,
+            "distance_m": 25743,
+            "fare": 33300,
             "fare_range": [
-              26300,
-              32600
+              30600,
+              36000
             ],
-            "estimated": true
+            "source": "naver",
+            "estimated": false
           }
         ]
       },
@@ -110,13 +111,13 @@
       },
       {
         "kind": "combo",
-        "arrival": "2026-11-10T01:52:21+09:00",
+        "arrival": "2026-11-10T01:52:14+09:00",
         "duration_min": 82,
-        "fare": 9800,
+        "fare": 9600,
         "rides": 2,
         "fare_detail": {
           "transit": 1800,
-          "taxi": 8000
+          "taxi": 7800
         },
         "recommended": true,
         "combo_kind": "taxi_last",
@@ -156,22 +157,23 @@
             "from": "도봉구민회관.도봉문화원",
             "to": "도착지",
             "departure": "2026-11-10T01:47:17+09:00",
-            "arrival": "2026-11-10T01:52:21+09:00",
+            "arrival": "2026-11-10T01:52:14+09:00",
             "wait_sec": 420,
-            "drive_sec": 304,
-            "distance_m": 2789,
-            "fare": 8000,
+            "drive_sec": 297,
+            "distance_m": 2719,
+            "fare": 7800,
             "fare_range": [
-              7700,
+              7200,
               8400
             ],
-            "estimated": true
+            "source": "naver",
+            "estimated": false
           }
         ]
       }
     ],
     "notes": [
-      "택시 거리·시간·요금은 직선거리 기반 추정입니다",
+      "택시 구간의 source: naver_live(네이버 실시간 경로), naver(네이버 경로 거리 + 심야 속도), estimate(직선거리 추정)",
       "버스는 막차·첫차만 공식 시각이고 그 사이는 배차 간격 기반 추정입니다"
     ]
   }

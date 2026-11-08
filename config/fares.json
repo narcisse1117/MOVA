@@ -19,10 +19,10 @@
   },
 
   "taxi_estimate": {
-    "status": "추정. 네이버 Directions 5 키가 나오면 실제 경로 거리·시간으로 바꾼다",
-    "detour": 1.35,
-    "detour_low": 1.2,
-    "detour_high": 1.55,
+    "status": "후보 비교용 추정. 화면에 보여줄 구간은 네이버 Directions 5로 다시 계산한다. detour는 2026-11-08 네이버 무작위 20구간 중앙값 1.5 (6km 미만 1.64)",
+    "detour": 1.5,
+    "detour_low": 1.3,
+    "detour_high": 1.9,
     "speed_kmh_by_hour": {"22": 24, "23": 27, "0": 30, "1": 33, "2": 35, "3": 35, "default": 22},
     "low_speed_share": 0.12,
     "pickup_wait_min_by_hour": {"22": 5, "23": 10, "0": 10, "1": 7, "2": 5, "3": 5, "default": 5},
@@ -42,6 +42,13 @@
     "extra_per_8km_after": 100,
     "rail_detour": 1.2,
     "bus_detour": 1.3
+  },
+
+  "naver": {
+    "_comment": "Directions 5: 대표 계정 월 60,000건 무료, 넘으면 건당 5원(VAT 별도). 한도를 넘기 전에 멈춘다",
+    "enabled": true,
+    "monthly_limit": 55000,
+    "real_fare_range": 0.08
   },
 
   "choice": {
