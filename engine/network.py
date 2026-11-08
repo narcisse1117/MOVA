@@ -25,12 +25,13 @@ ENGINE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(ENGINE)
 PREP_OUT = os.path.join(ROOT, "prep", "out")
 CACHE = os.path.join(ENGINE, "cache")
-CACHE_VERSION = 8
+CACHE_VERSION = 9
 DATA = os.path.join(ROOT, "데이터")
 OFFICIAL_BLEND_SEC = 7200
 OUTLIER_SEC = 1800
 SHORT_TURN_SLACK = 180     # 공식 막차보다 이만큼 늦게 지나는 운행은 없는 것으로 본다
-INF32 = 2 ** 31 - 1         # 공식 정류장 시각이 추정 기점 시각에서 이만큼 벗어나면 버린다   # 공식 막차·첫차에서 이 시간 안의 버스는 공식 시각 쪽으로 보정한다
+INF32 = 2 ** 31 - 1
+BUS_BOARD_SLACK_RATIO = 0.5   # 버스 가상 운행은 실제와 배차 간격만큼 어긋날 수 있어, 평균 대기(절반)만큼 일찍 와 있어야 탄다고 본다         # 공식 정류장 시각이 추정 기점 시각에서 이만큼 벗어나면 버린다   # 공식 막차·첫차에서 이 시간 안의 버스는 공식 시각 쪽으로 보정한다
 
 RAIL_QUALITY_OK = {"ok", "dep_from_arr"}
 BUS_DAY = {"WD": ("WD", "wd"), "SAT": ("SAT", "we"), "HOL": ("HOL", "we")}
@@ -55,6 +56,9 @@ class Route:
     trip_label: list          # 운행마다 설명 (열차번호·행선지 / 기점 출발 시각)
     headway_min: float = 0.0  # 버스만
     route_id: str = ""
+    board_slack: int = 0      # 가상 운행을 타려면 이만큼 일찍 정류장에 있어야 한다 (버스: 배차 간격의 절반)
+    exact_first: bool = False # 첫 운행이 공식 시각 (여유 없이 탈 수 있음)
+    exact_last: bool = False  # 마지막 운행이 공식 시각
 
 
 @dataclass
@@ -292,7 +296,9 @@ def load_bus(net, day):
         n = int((last - first) // (hw * 60)) + 1
         d0 = np.sort(last - np.arange(n) * hw * 60).astype(np.int64)
         times = simulate(d0)
+        applied = False
         if L is not None and (~np.isnan(L)).sum() >= 2:
+            applied = True
             n_official += 1
             c_last = fill_along(L - times[-1])
             c_first = fill_along(F - times[0]) if (~np.isnan(F)).sum() >= 1 else np.zeros(len(seqs))
@@ -328,7 +334,10 @@ def load_bus(net, day):
         times_arr, times_dep = times_arr[:, keep], times_dep[:, keep]
         labels = [f"기점 {fmt(x)} 출발" for x in d0]
         net.routes.append(Route("bus", str(r.route_no), stop_idx, times_arr.astype(np.int32), times_dep.astype(np.int32),
-                                labels, headway_min=float(hw), route_id=r.route_id))
+                                labels, headway_min=float(hw), route_id=r.route_id,
+                                board_slack=int(hw * 60 * BUS_BOARD_SLACK_RATIO),
+                                exact_first=applied and F is not None and (~np.isnan(F)).sum() >= 1,
+                                exact_last=applied))
     net.bus_official_routes = n_official
     net.bus_short_turn_routes = n_short_turn[0]
     bus_pts = stops[(stops.has_coord == 1) & (stops.is_virtual == 0)]

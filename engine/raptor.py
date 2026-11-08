@@ -83,7 +83,14 @@ def query(net, origin, dest, t0, max_legs=MAX_LEGS, return_state=False, skip_rou
                             target = min(target, a + egress[s])
                 rt = prev_ready[s]
                 if rt < INF and (trip < 0 or rt <= D[trip, i]):
-                    t = int(np.searchsorted(D[:, i], rt, side="left"))
+                    # 공식 시각인 첫·막 운행은 그대로, 가상 운행은 board_slack만큼 일찍 와 있어야 탄다
+                    n_trips = len(D)
+                    if r.exact_first and D[0, i] >= rt:
+                        t = 0
+                    else:
+                        t = int(np.searchsorted(D[:, i], rt + r.board_slack, side="left"))
+                        if r.exact_last and t >= n_trips - 1 and D[n_trips - 1, i] >= rt:
+                            t = n_trips - 1
                     # 막힌 운행(단축 운행으로 이 정류장을 안 지나는 운행)은 탈 수 없다
                     if t < len(D) and D[t, i] < INF and (trip < 0 or t < trip):
                         trip, board = t, i
