@@ -1,0 +1,16 @@
+[Unit]
+Description=MOVA API (FastAPI + 경로 엔진)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/MOVA
+Environment=PYTHONIOENCODING=utf-8
+# 노선망을 메모리에 올려 두므로 워커는 1개 (2GB 서버 기준)
+ExecStart=/home/ubuntu/MOVA/.venv/bin/uvicorn server.app:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

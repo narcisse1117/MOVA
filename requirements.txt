@@ -1,0 +1,9 @@
+# 백엔드 서버 + 경로 엔진 + 데이터 정리 (Python 3.9 이상, 서버는 Ubuntu 24.04의 Python 3.12)
+pandas==2.3.3
+numpy==2.0.2
+scipy==1.13.1
+openpyxl==3.1.2
+fastapi==0.115.6
+uvicorn==0.32.1
+pydantic==2.13.4
+httpx==0.28.1

@@ -1,0 +1,6 @@
+# HTTPS 자동 발급 (Let's Encrypt). 도메인이 없으면 '고정IP.sslip.io'를 쓴다 (예: 3.38.12.34.sslip.io)
+# setup.sh가 {$MOVA_HOST}를 실제 주소로 바꿔서 /etc/caddy/Caddyfile에 넣는다
+{$MOVA_HOST} {
+	encode gzip
+	reverse_proxy 127.0.0.1:8000
+}
