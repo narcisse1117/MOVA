@@ -32,7 +32,7 @@ def nearby(net, lat, lon, radius=ACCESS_M):
     return best
 
 
-def query(net, origin, dest, t0, max_legs=MAX_LEGS, return_state=False):
+def query(net, origin, dest, t0, max_legs=MAX_LEGS, return_state=False, skip_routes=None):
     """origin, dest: (lat, lon). t0: 운행일 기준 초. 결과: 탈것 수가 적은 순으로 더 빨라지는 경로 목록."""
     n = len(net.stop_id)
     access = nearby(net, *origin)
@@ -54,6 +54,8 @@ def query(net, origin, dest, t0, max_legs=MAX_LEGS, return_state=False):
         queue = {}
         for s in marked:
             for ri, pos in net.routes_at[s]:
+                if skip_routes is not None and ri in skip_routes:
+                    continue
                 if pos < queue.get(ri, INF):
                     queue[ri] = pos
         newly = set()
