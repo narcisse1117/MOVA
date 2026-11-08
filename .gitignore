@@ -13,3 +13,5 @@ __pycache__/
 engine/cache/
 # API 서버 DB
 server/data/
+# 서버 접속 키 (절대 올리지 않음)
+*.pem
