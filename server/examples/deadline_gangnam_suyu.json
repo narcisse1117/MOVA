@@ -18,17 +18,17 @@
     "from": "2026-11-09T21:00:00+09:00",
     "buffer_min": 5,
     "regular": {
-      "leave_by": "2026-11-10T00:39:45+09:00",
-      "latest": "2026-11-10T00:44:45+09:00",
+      "leave_by": "2026-11-10T00:31:33+09:00",
+      "latest": "2026-11-10T00:36:33+09:00",
       "all_night": false,
       "route": {
         "kind": "transit",
-        "arrival": "2026-11-10T01:48:43+09:00",
-        "duration_min": 63,
-        "fare": 1800,
-        "rides": 2,
+        "arrival": "2026-11-10T01:41:26+09:00",
+        "duration_min": 64,
+        "fare": 1700,
+        "rides": 1,
         "fare_detail": {
-          "transit": 1800,
+          "transit": 1700,
           "taxi": 0
         },
         "recommended": false,
@@ -43,32 +43,14 @@
           {
             "type": "bus",
             "from": "지하철2호선강남역",
-            "to": "종로2가사거리",
-            "line": "741",
-            "trip": "기점 22:50 출발",
-            "departure": "2026-11-10T00:52:02+09:00",
-            "arrival": "2026-11-10T01:09:58+09:00",
-            "stops": 7,
-            "headway_min": 10.0,
-            "distance_m": 10914
-          },
-          {
-            "type": "walk",
-            "from": "종로2가사거리",
-            "to": "종로3가역.탑골공원",
-            "duration_sec": 173
-          },
-          {
-            "type": "bus",
-            "from": "종로3가역.탑골공원",
             "to": "수유역.강북구청",
-            "line": "150",
-            "trip": "기점 22:00 출발",
-            "departure": "2026-11-10T01:14:27+09:00",
-            "arrival": "2026-11-10T01:47:28+09:00",
-            "stops": 17,
-            "headway_min": 8.0,
-            "distance_m": 10577
+            "line": "140",
+            "trip": "기점 22:50 출발",
+            "departure": "2026-11-10T00:47:11+09:00",
+            "arrival": "2026-11-10T01:40:11+09:00",
+            "stops": 24,
+            "headway_min": 7.0,
+            "distance_m": 19776
           },
           {
             "type": "walk",
@@ -85,8 +67,8 @@
       "all_night": true,
       "route": {
         "kind": "transit",
-        "arrival": "2026-11-10T05:05:57+09:00",
-        "duration_min": 65,
+        "arrival": "2026-11-10T05:48:11+09:00",
+        "duration_min": 108,
         "fare": 2800,
         "rides": 2,
         "fare_detail": {
@@ -99,32 +81,32 @@
           {
             "type": "walk",
             "from": "출발지",
-            "to": "강남역12번출구",
-            "duration_sec": 232
+            "to": "역삼역4번출구",
+            "duration_sec": 810
           },
           {
             "type": "bus",
-            "from": "강남역12번출구",
-            "to": "동대문역사문화공원역9번출구",
+            "from": "역삼역4번출구",
+            "to": "동대문역.흥인지문",
             "line": "N13",
-            "trip": "기점 25:10 출발",
-            "departure": "2026-11-10T04:06:04+09:00",
-            "arrival": "2026-11-10T04:25:18+09:00",
-            "stops": 13,
-            "headway_min": 25.0,
-            "distance_m": 9913
-          },
-          {
-            "type": "bus",
-            "from": "동대문역사문화공원역9번출구",
-            "to": "수유역.강북구청",
-            "line": "N16",
-            "trip": "기점 25:15 출발",
-            "departure": "2026-11-10T04:33:14+09:00",
-            "arrival": "2026-11-10T05:04:42+09:00",
+            "trip": "기점 25:35 출발",
+            "departure": "2026-11-10T04:34:07+09:00",
+            "arrival": "2026-11-10T04:58:59+09:00",
             "stops": 16,
             "headway_min": 25.0,
-            "distance_m": 10660
+            "distance_m": 10683
+          },
+          {
+            "type": "bus",
+            "from": "동대문역.흥인지문",
+            "to": "수유역.강북구청",
+            "line": "N15",
+            "trip": "기점 26:10 출발",
+            "departure": "2026-11-10T05:19:31+09:00",
+            "arrival": "2026-11-10T05:46:56+09:00",
+            "stops": 16,
+            "headway_min": 20.0,
+            "distance_m": 9508
           },
           {
             "type": "walk",

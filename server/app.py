@@ -17,7 +17,6 @@ import sqlite3
 import sys
 import threading
 from typing import List, Optional  # noqa: F401
-from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -124,8 +123,6 @@ class GroupCreate(BaseModel):
 class MemberCreate(BaseModel):
     nickname: str = Field(..., max_length=20)
     home: Point
-    toss_id: Optional[str] = Field(None, max_length=40, pattern=r"^[A-Za-z0-9_.-]+$",
-                                   description="토스 아이디 (toss.me/아이디). 택시비를 낸 사람에게 송금 링크를 만든다")
 
 
 def leg_json(leg, day):
@@ -286,6 +283,40 @@ def deadline(req: DeadlineRequest):
             "buffer_min": deadline_mod.BUFFER_MIN, **deadline_json(d, day)}
 
 
+# ---------- 실제 금액 나누기 (F3) ----------
+
+class SettleRider(BaseModel):
+    nickname: str = Field(..., max_length=20)
+    member_id: Optional[str] = None
+    estimated_meter: Optional[int] = Field(None, ge=0, description="예상 미터기 (GET /api/groups의 estimated_meters)")
+    actual_meter: Optional[int] = Field(None, ge=0, description="내릴 때 본 실제 미터기 금액 (선택)")
+
+
+class SettleRequest(BaseModel):
+    riders: List[SettleRider] = Field(..., min_length=1, max_length=4, description="내린 순서대로. 마지막 사람이 낸 사람")
+    total_fare: int = Field(..., gt=0, le=500000, description="실제로 낸 택시비 총액")
+
+
+@app.post("/api/settle")
+def settle(req: SettleRequest):
+    """내린 뒤 실제 금액으로 나누기. 각자 내릴 때 미터기 금액을 넣으면 그대로 구간을 나누고,
+    총액만 넣으면 예상 미터기 비율대로 나눈다 (예상도 없으면 똑같이 나눔). 송금은 하지 않는다."""
+    n = len(req.riders)
+    est = [r.estimated_meter for r in req.riders]
+    if any(e is None for e in est):
+        est = [req.total_fare * (i + 1) / n for i in range(n)]      # 예상이 없으면 구간을 똑같이
+    actual = [r.actual_meter for r in req.riders]
+    use_actual = all(a is not None for a in actual)
+    shares, payer = groups_mod.settle_actual(est, req.total_fare, actual if use_actual else None)
+    p = req.riders[payer]
+    return {"total_fare": req.total_fare, "method": "actual_meters" if use_actual else "estimated_ratio",
+            "payer": p.nickname,
+            "shares": [{"nickname": r.nickname, "member_id": r.member_id, "share": sh}
+                       for r, sh in zip(req.riders, shares)],
+            "transfers": [{"from": r.nickname, "to": p.nickname, "amount": sh}
+                          for i, (r, sh) in enumerate(zip(req.riders, shares)) if i != payer]}
+
+
 # ---------- 모임 (F3) ----------
 
 def db():
@@ -324,17 +355,13 @@ def add_member(gid: str, req: MemberCreate):
     with db() as con:
         if not con.execute("select 1 from groups where id=?", (gid,)).fetchone():
             raise HTTPException(404, "모임이 없습니다")
-        con.execute("insert into members (id, group_id, nickname, home_lat, home_lng, home_label, created_at, toss_id) "
-                    "values (?,?,?,?,?,?,?,?)",
-                    (mid, gid, req.nickname, req.home.lat, req.home.lng, req.home.label, now_iso(), req.toss_id))
+        con.execute("insert into members (id, group_id, nickname, home_lat, home_lng, home_label, created_at) "
+                    "values (?,?,?,?,?,?,?)",
+                    (mid, gid, req.nickname, req.home.lat, req.home.lng, req.home.label, now_iso()))
     return {"id": mid}
 
 
 _deadline_cache = {}
-
-
-def toss_link(toss_id, amount):
-    return f"https://toss.me/{quote(toss_id)}/{int(amount)}" if toss_id else None
 
 
 def taxi_groups_json(g, members, deadlines, leave_at):
@@ -361,8 +388,9 @@ def taxi_groups_json(g, members, deadlines, leave_at):
             if m["id"] != payer["id"]:
                 transfers.append({"from_member_id": m["id"], "from": m["nickname"],
                                   "to_member_id": payer["id"], "to": payer["nickname"], "amount": share,
-                                  "toss_link": toss_link(payer["toss_id"], share)})
-        out.append({"riders": riders, "total_fare": x["total_fare"], "payer_member_id": payer["id"],
+                                  "estimated": True})
+        out.append({"riders": riders, "total_fare": x["total_fare"],
+                    "estimated_meters": [st["meter"] for st in x["stops"]], "payer_member_id": payer["id"],
                     "payer": payer["nickname"], "source": x.get("source", "estimate"),
                     "estimated": x.get("source", "estimate") == "estimate"})
     return out, transfers
@@ -400,5 +428,6 @@ def get_group(gid: str, leave_at: Optional[dt.datetime] = None):
             "members": out, "leave_at": leave_at.isoformat() if leave_at else None,
             "taxi_groups": taxi_groups, "settlement": transfers,
             "notes": ["leave_at을 주면 그때 막차(지하철·일반버스)가 끊긴 사람끼리 택시를 묶습니다",
+                      "택시 요금과 settlement는 예상값입니다. 내린 뒤 실제 금액은 POST /api/settle로 다시 나눕니다 (송금은 각자)",
                       "택시 요금은 네이버 실제 경로(경유지 포함) 기준이고(키가 없거나 한도를 넘으면 추정), 정산은 내리는 곳 기준입니다",
                       "solo_fare(혼자 탔을 때)는 추정값이라 saving은 참고용입니다"]}

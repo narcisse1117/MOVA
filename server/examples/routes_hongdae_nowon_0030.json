@@ -16,6 +16,7 @@
     "service_day": "2026-11-09",
     "day_type": "WD",
     "departure": "2026-11-10T00:30:00+09:00",
+    "live": false,
     "options": [
       {
         "kind": "taxi",
@@ -54,8 +55,8 @@
       },
       {
         "kind": "transit",
-        "arrival": "2026-11-10T02:00:22+09:00",
-        "duration_min": 90,
+        "arrival": "2026-11-10T02:22:39+09:00",
+        "duration_min": 112,
         "fare": 2900,
         "rides": 2,
         "fare_detail": {
@@ -74,32 +75,32 @@
           {
             "type": "bus",
             "from": "홍대입구역",
-            "to": "88병원",
+            "to": "동부시장남문입구",
             "line": "271",
-            "trip": "기점 22:14 출발",
-            "departure": "2026-11-10T00:34:37+09:00",
-            "arrival": "2026-11-10T01:31:05+09:00",
-            "stops": 31,
+            "trip": "기점 22:20 출발",
+            "departure": "2026-11-10T00:40:48+09:00",
+            "arrival": "2026-11-10T01:36:03+09:00",
+            "stops": 30,
             "headway_min": 6.0,
-            "distance_m": 18725
+            "distance_m": 18334
           },
           {
             "type": "walk",
-            "from": "88병원",
-            "to": "상봉2동복합청사.도서관",
-            "duration_sec": 115
+            "from": "동부시장남문입구",
+            "to": "면목2동주민센터.중목초등학교",
+            "duration_sec": 269
           },
           {
             "type": "bus",
-            "from": "상봉2동복합청사.도서관",
+            "from": "면목2동주민센터.중목초등학교",
             "to": "노원역5번출구.상계주공6단지",
             "line": "N61",
-            "trip": "기점 23:50 출발",
-            "departure": "2026-11-10T01:33:07+09:00",
-            "arrival": "2026-11-10T01:56:05+09:00",
-            "stops": 17,
+            "trip": "기점 24:10 출발",
+            "departure": "2026-11-10T01:53:09+09:00",
+            "arrival": "2026-11-10T02:18:22+09:00",
+            "stops": 18,
             "headway_min": 20.0,
-            "distance_m": 9107
+            "distance_m": 9362
           },
           {
             "type": "walk",
@@ -111,8 +112,8 @@
       },
       {
         "kind": "combo",
-        "arrival": "2026-11-10T01:52:14+09:00",
-        "duration_min": 82,
+        "arrival": "2026-11-10T02:02:14+09:00",
+        "duration_min": 92,
         "fare": 9600,
         "rides": 2,
         "fare_detail": {
@@ -131,33 +132,33 @@
           {
             "type": "bus",
             "from": "홍대입구역",
-            "to": "종로3가역.탑골공원",
+            "to": "종로1가.종각역",
             "line": "271",
-            "trip": "기점 22:14 출발",
-            "departure": "2026-11-10T00:34:37+09:00",
-            "arrival": "2026-11-10T00:58:54+09:00",
-            "stops": 13,
+            "trip": "기점 22:20 출발",
+            "departure": "2026-11-10T00:40:48+09:00",
+            "arrival": "2026-11-10T01:01:00+09:00",
+            "stops": 11,
             "headway_min": 6.0,
-            "distance_m": 7798
+            "distance_m": 6884
           },
           {
             "type": "bus",
-            "from": "종로3가역.탑골공원",
+            "from": "종로1가.종각역",
             "to": "도봉구민회관.도봉문화원",
-            "line": "140",
-            "trip": "기점 22:43 출발",
-            "departure": "2026-11-10T01:00:41+09:00",
-            "arrival": "2026-11-10T01:40:17+09:00",
-            "stops": 21,
-            "headway_min": 7.0,
-            "distance_m": 13329
+            "line": "150",
+            "trip": "기점 21:52 출발",
+            "departure": "2026-11-10T01:07:13+09:00",
+            "arrival": "2026-11-10T01:50:17+09:00",
+            "stops": 23,
+            "headway_min": 8.0,
+            "distance_m": 13760
           },
           {
             "type": "taxi",
             "from": "도봉구민회관.도봉문화원",
             "to": "도착지",
-            "departure": "2026-11-10T01:47:17+09:00",
-            "arrival": "2026-11-10T01:52:14+09:00",
+            "departure": "2026-11-10T01:57:17+09:00",
+            "arrival": "2026-11-10T02:02:14+09:00",
             "wait_sec": 420,
             "drive_sec": 297,
             "distance_m": 2719,
@@ -165,6 +166,106 @@
             "fare_range": [
               7200,
               8400
+            ],
+            "source": "naver",
+            "estimated": false
+          }
+        ]
+      },
+      {
+        "kind": "combo",
+        "arrival": "2026-11-10T01:39:48+09:00",
+        "duration_min": 69,
+        "fare": 25600,
+        "rides": 1,
+        "fare_detail": {
+          "transit": 1500,
+          "taxi": 24100
+        },
+        "recommended": false,
+        "combo_kind": "taxi_last",
+        "legs": [
+          {
+            "type": "walk",
+            "from": "출발지",
+            "to": "홍대입구역",
+            "duration_sec": 213
+          },
+          {
+            "type": "bus",
+            "from": "홍대입구역",
+            "to": "종로1가.종각역",
+            "line": "271",
+            "trip": "기점 22:20 출발",
+            "departure": "2026-11-10T00:40:48+09:00",
+            "arrival": "2026-11-10T01:01:00+09:00",
+            "stops": 11,
+            "headway_min": 6.0,
+            "distance_m": 6884
+          },
+          {
+            "type": "taxi",
+            "from": "종로1가.종각역",
+            "to": "도착지",
+            "departure": "2026-11-10T01:08:00+09:00",
+            "arrival": "2026-11-10T01:39:48+09:00",
+            "wait_sec": 420,
+            "drive_sec": 1908,
+            "distance_m": 17491,
+            "fare": 24100,
+            "fare_range": [
+              22200,
+              26000
+            ],
+            "source": "naver",
+            "estimated": false
+          }
+        ]
+      },
+      {
+        "kind": "combo",
+        "arrival": "2026-11-10T01:43:14+09:00",
+        "duration_min": 73,
+        "fare": 24900,
+        "rides": 1,
+        "fare_detail": {
+          "transit": 1500,
+          "taxi": 23400
+        },
+        "recommended": false,
+        "combo_kind": "taxi_last",
+        "legs": [
+          {
+            "type": "walk",
+            "from": "출발지",
+            "to": "홍대입구역",
+            "duration_sec": 213
+          },
+          {
+            "type": "bus",
+            "from": "홍대입구역",
+            "to": "종로3가역.탑골공원",
+            "line": "271",
+            "trip": "기점 22:20 출발",
+            "departure": "2026-11-10T00:40:48+09:00",
+            "arrival": "2026-11-10T01:05:45+09:00",
+            "stops": 13,
+            "headway_min": 6.0,
+            "distance_m": 7798
+          },
+          {
+            "type": "taxi",
+            "from": "종로3가역.탑골공원",
+            "to": "도착지",
+            "departure": "2026-11-10T01:12:45+09:00",
+            "arrival": "2026-11-10T01:43:14+09:00",
+            "wait_sec": 420,
+            "drive_sec": 1829,
+            "distance_m": 16762,
+            "fare": 23400,
+            "fare_range": [
+              21500,
+              25300
             ],
             "source": "naver",
             "estimated": false

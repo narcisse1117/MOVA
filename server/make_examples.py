@@ -42,17 +42,27 @@ def main():
 
     req = {"name": "송년회", "meeting_place": GANGNAM, "date": "2026-12-18"}
     g = c.post("/api/groups", json=req).json()
-    people = (("민수", NOWON, None), ("수진", DOBONG, "sujin_toss"), ("철수", SUYU, None),
-              ("지영", SINLIM, None), ("영희", BONGCHEON, None), ("현우", HONGDAE, "hyunwoo_toss"))
-    for nick, home, toss in people:
-        body = {"nickname": nick, "home": home}
-        if toss:
-            body["toss_id"] = toss
-        c.post(f"/api/groups/{g['id']}/members", json=body).raise_for_status()
+    people = (("민수", NOWON), ("수진", DOBONG), ("철수", SUYU), ("지영", SINLIM), ("영희", BONGCHEON), ("현우", HONGDAE))
+    for nick, home in people:
+        c.post(f"/api/groups/{g['id']}/members", json={"nickname": nick, "home": home}).raise_for_status()
     r = c.get(f"/api/groups/{g['id']}", params={"leave_at": "2026-12-19T01:00"})
     r.raise_for_status()
-    save("group_get.json", {"create": req, "members": [f"{n}({h['label']})" for n, h, _ in people],
+    save("group_get.json", {"create": req, "members": [f"{n}({h['label']})" for n, h in people],
                             "query": "GET /api/groups/{id}?leave_at=2026-12-19T01:00"}, r.json())
+
+    # 내린 뒤 실제 금액 나누기: 총액만 / 내릴 때 미터기까지
+    taxi = r.json()["taxi_groups"][0]
+    riders = [{"nickname": x["nickname"], "member_id": x["member_id"], "estimated_meter": m}
+              for x, m in zip(taxi["riders"], taxi["estimated_meters"])]
+    req1 = {"riders": riders, "total_fare": taxi["total_fare"] + 1800}
+    r1 = c.post("/api/settle", json=req1)
+    r1.raise_for_status()
+    save("settle_total_only.json", req1, r1.json())
+    riders2 = [dict(x, actual_meter=m) for x, m in zip(riders, [27800, 33100, 38400])][:len(riders)]
+    req2 = {"riders": riders2, "total_fare": 38400}
+    r2 = c.post("/api/settle", json=req2)
+    r2.raise_for_status()
+    save("settle_actual_meters.json", req2, r2.json())
     print("db:", DB_PATH)
 
 

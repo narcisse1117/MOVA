@@ -1,0 +1,56 @@
+{
+  "request": {
+    "riders": [
+      {
+        "nickname": "철수",
+        "member_id": "tUvkdfsv",
+        "estimated_meter": 28500
+      },
+      {
+        "nickname": "민수",
+        "member_id": "0hOc_4uY",
+        "estimated_meter": 33300
+      },
+      {
+        "nickname": "수진",
+        "member_id": "6A8IizHY",
+        "estimated_meter": 36800
+      }
+    ],
+    "total_fare": 38600
+  },
+  "response": {
+    "total_fare": 38600,
+    "method": "estimated_ratio",
+    "payer": "수진",
+    "shares": [
+      {
+        "nickname": "철수",
+        "member_id": "tUvkdfsv",
+        "share": 9960
+      },
+      {
+        "nickname": "민수",
+        "member_id": "0hOc_4uY",
+        "share": 12480
+      },
+      {
+        "nickname": "수진",
+        "member_id": "6A8IizHY",
+        "share": 16160
+      }
+    ],
+    "transfers": [
+      {
+        "from": "철수",
+        "to": "수진",
+        "amount": 9960
+      },
+      {
+        "from": "민수",
+        "to": "수진",
+        "amount": 12480
+      }
+    ]
+  }
+}

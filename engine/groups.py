@@ -68,7 +68,7 @@ def settle(stops):
         prev = s["meter"]
     payer = stops[-1]["member"]
     out = {m: int(math.floor(v / SHARE_ROUND + 0.5) * SHARE_ROUND) for m, v in share.items()}
-    out[payer] = stops[-1]["meter"] - sum(v for m, v in out.items() if m != payer)
+    out[payer] = int(round(stops[-1]["meter"])) - sum(v for m, v in out.items() if m != payer)
     return out, payer
 
 
@@ -130,3 +130,24 @@ def plan_taxis(meeting, homes, t_start, live=False):
         })
     taxis.sort(key=lambda x: -len(x["order"]))
     return taxis
+
+
+def settle_actual(est_meters, total_fare, actual_meters=None):
+    """택시에서 내린 뒤 실제 금액으로 나눈다. 순서는 내린 순서.
+    est_meters: 예상 미터기(내릴 때) 목록, total_fare: 실제 낸 총액,
+    actual_meters: 사람마다 내릴 때 본 미터기 금액(있으면 이걸로 구간을 나눈다, 마지막 값은 total_fare로 맞춘다).
+    결과: (몫 목록, 내는 사람 위치 = 마지막)."""
+    n = len(est_meters)
+    if n == 0:
+        return [], None
+    if actual_meters and len(actual_meters) == n and all(m is not None for m in actual_meters):
+        meters = [float(m) for m in actual_meters]
+        meters[-1] = float(total_fare)
+    else:
+        # 총액만 있으면 예상 미터기를 실제 총액 비율로 늘이거나 줄인다
+        k = float(total_fare) / float(est_meters[-1]) if est_meters[-1] else 1.0
+        meters = [m * k for m in est_meters]
+        meters[-1] = float(total_fare)
+    stops = [{"member": i, "meter": meters[i]} for i in range(n)]
+    shares, payer = settle(stops)
+    return [shares[i] for i in range(n)], payer

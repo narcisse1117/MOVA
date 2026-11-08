@@ -34,6 +34,7 @@ python -m uvicorn server.app:app --reload --port 8000
 | POST | `/api/deadline` | F3: 출발 마감 시각 |
 | POST | `/api/groups` | 모임 만들기 → `id`, `share_path` |
 | POST | `/api/groups/{id}/members` | 멤버 추가 (닉네임, 집 좌표) |
+| POST | `/api/settle` | 내린 뒤 실제 택시비로 나누기 (총액만, 또는 내릴 때 미터기까지). 송금은 각자 |
 | GET | `/api/groups/{id}?leave_at=...` | 모임 + 멤버별 출발 마감 (마감이 빠른 순). `leave_at`(모임 끝나는 시각)을 주면 택시 묶기 + 정산 |
 
 ### 장소 검색 (`/api/geocode`, `/api/reverse`)
@@ -67,22 +68,37 @@ python -m uvicorn server.app:app --reload --port 8000
 ### 모임
 
 1. `POST /api/groups` `{"name": "송년회", "meeting_place": {...}, "date": "2026-12-18"}` → `{"id": "...", "share_path": "/g/..."}`
-2. 링크를 받은 사람마다 `POST /api/groups/{id}/members` `{"nickname": "민수", "home": {...}, "toss_id": "선택"}`
+2. 링크를 받은 사람마다 `POST /api/groups/{id}/members` `{"nickname": "민수", "home": {...}}`
 3. `GET /api/groups/{id}` → `members[].deadline` (위 deadline과 같은 모양). 마감 계산은 모임 날짜 21:00 이후 기준
 4. `GET /api/groups/{id}?leave_at=2026-12-19T01:00` → 위에 더해
    - `taxi_groups[]`: 그 시각에 지하철·일반버스 막차가 끊긴 사람끼리 묶은 택시. `riders[]`는 내리는 순서이고 각자 `arrival`, `meter_at_dropoff`(내릴 때 미터기), `share`(낼 몫), `solo_fare`(혼자 탔으면), `saving`. `payer`는 마지막에 내려 택시비를 내는 사람
-   - `settlement[]`: 누가 누구에게 얼마 보내는지. 받는 사람이 `toss_id`를 등록했으면 `toss_link`(`https://toss.me/아이디/금액`)
+   - `taxi_groups[].estimated_meters`: 내릴 때 예상 미터기 (내린 순서)
+   - `settlement[]`: 누가 누구에게 얼마 보내는지 **예상값** (`estimated: true`)
+5. 택시에서 내린 뒤 `POST /api/settle`로 실제 금액을 나눈다 (아래)
 
 묶기·정산 규칙 (`engine/groups.py`)
 - 한 차 4명까지. 합쳤을 때 택시비가 가장 많이 줄어드는 묶음부터 합친다. 혼자 갈 때보다 20분 넘게 늦어지는 사람이 생기면 안 합친다
 - 내리는 순서는 가능한 순서를 모두 비교해 택시비가 가장 싼 순서
 - 정산: 미터기를 구간(사람이 내릴 때마다)으로 나누고, 구간 요금은 그 구간에 타고 있던 사람끼리 똑같이 나눈다. 1인 몫은 10원 단위, 남는 돈은 내는 사람 몫
 - 택시마다 네이버 실제 경로(모임 장소 → 집들, 경유지)로 미터기를 계산한다 (`source`). `solo_fare`는 추정이라 `saving`은 참고용
-- 토스 `toss.me/아이디/금액` 링크 형식은 실제 앱에서 한 번 확인해야 한다. 카카오페이는 금액을 넣은 송금 링크를 만들 수 없어서 아직 없다
+- 송금은 서비스가 하지 않는다. 금액만 계산해서 보여주고 각자 보낸다 (송금 링크도 만들지 않음)
+
+### `POST /api/settle` (내린 뒤 실제 금액)
+
+```json
+{"riders": [{"nickname": "철수", "estimated_meter": 28500},
+            {"nickname": "민수", "estimated_meter": 33300},
+            {"nickname": "수진", "estimated_meter": 36800}],
+ "total_fare": 38600}
+```
+- `riders`는 내린 순서. 마지막 사람이 택시비를 낸 사람
+- **총액만** 넣으면 예상 미터기 비율대로 늘이거나 줄여서 나눈다 (`method: estimated_ratio`). 예상도 없으면 구간을 똑같이 본다
+- 각자 **내릴 때 미터기 금액**(`actual_meter`)까지 넣으면 그대로 구간을 나눈다 (`method: actual_meters`, 가장 정확)
+- 응답: `shares`(각자 몫), `transfers`(누가 누구에게 얼마). 예시: `server/examples/settle_total_only.json`, `settle_actual_meters.json`
 
 ## 아직 없는 것
 
-- 택시를 탈 사람을 직접 고르기 (지금은 막차 끊긴 사람 전부), 카카오페이 송금
+- 택시를 탈 사람을 직접 고르기 (지금은 막차 끊긴 사람 전부)
 - 인증·수정·삭제, 요청 제한
 - 지하철 실시간, 실시간으로 뒤 구간 시각 다시 계산
 - 배포 (지금은 SQLite 파일 `server/data/mova.db`)
