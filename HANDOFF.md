@@ -86,6 +86,11 @@
 - **접근 제한 (2026-11-08):** CORS는 localhost·`*.vercel.app`만, IP별 요청 제한(무거운 요청 1분 20·하루 300), 네이버 하루 1,900건 상한. 프론트 주소 정해지면 `config/app.json` `cors_origins`에 추가
 - 자세한 건 `deploy/README.md`
 
+## 테스트
+
+`pip install -r requirements-dev.txt` 후 `python -m pytest -q` (레포 최상위). 25개, 약 5초. 네이버·버스 실시간 API는 부르지 않음(가짜로 바꿈). `prep/out` 데이터가 없으면 엔진 테스트는 건너뜀. 고친 뒤 커밋 전에 돌린다.
+- `tests/test_fares.py` 택시·대중교통 요금 / `test_groups.py` 정산·묶기 / `test_engine.py` 네이버 대조 경로·마감·조합 / `test_api.py` 시각 변환·정산·요청 제한·CORS
+
 ## 이번 주 할 일 (2026-11-08 ~ 11-14)
 
 | 날짜 | 할 일 | 누가 |
