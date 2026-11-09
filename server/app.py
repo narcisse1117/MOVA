@@ -122,12 +122,11 @@ _net_lock = threading.Lock()
 
 
 def _official_mtime(dtype):
-    f = network.official_file(dtype)
-    return os.path.getmtime(f) if f else 0
+    return network.data_mtime(dtype)       # 공식 버스 시각 + 심야버스 실측
 
 
 def get_net(dtype):
-    """요일 유형별 노선망. 공식 버스 시각 파일이 새로 생기면(정기 수집) 다시 읽는다."""
+    """요일 유형별 노선망. 공식 버스 시각·심야버스 실측 파일이 새로 생기면 다시 읽는다."""
     with _net_lock:
         cur = _nets.get(dtype)
         if cur is None or cur[1] < _official_mtime(dtype):

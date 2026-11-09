@@ -45,12 +45,13 @@ echo "== 6. HTTPS (Caddy)"
 sed "s/{\$MOVA_HOST}/$HOST/" deploy/Caddyfile | sudo tee /etc/caddy/Caddyfile >/dev/null
 sudo systemctl reload caddy || sudo systemctl restart caddy
 
-echo "== 7. 정기 수집 (cron): 월·토 14:00 공식 막차, 수·금 22:50 심야버스"
+echo "== 7. 정기 수집 (cron): 월·토 14:00 공식 막차, 수·금 22:50 심야버스, 목·토 05:00 심야버스 시간표"
 CRON="$APP/.venv/bin/python"
 # 기존 crontab이 없으면 crontab -l·grep이 실패하므로 || true (set -e, pipefail 때문)
 { crontab -l 2>/dev/null | grep -v MOVA_ || true
   echo "0 14 * * 1,6 cd $APP && PYTHONIOENCODING=utf-8 $CRON prep/fetch_bus_times.py --log  # MOVA_fetch"
   echo "50 22 * * 3,5 cd $APP && PYTHONIOENCODING=utf-8 $CRON prep/collect_night_bus.py >> prep/out/night_bus.log 2>&1  # MOVA_night"
+  echo "0 5 * * 4,6 cd $APP && PYTHONIOENCODING=utf-8 $CRON prep/build_night_timetable.py >> prep/out/night_bus.log 2>&1  # MOVA_nightbuild"
 } | crontab -
 crontab -l | grep MOVA_
 

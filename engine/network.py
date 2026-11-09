@@ -25,11 +25,13 @@ ENGINE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(ENGINE)
 PREP_OUT = os.path.join(ROOT, "prep", "out")
 CACHE = os.path.join(ENGINE, "cache")
-CACHE_VERSION = 11
+CACHE_VERSION = 12
 DATA = os.path.join(ROOT, "데이터")
 OFFICIAL_BLEND_SEC = 7200
 OUTLIER_SEC = 1800
-SHORT_TURN_SLACK = 180     # 공식 막차보다 이만큼 늦게 지나는 운행은 없는 것으로 본다
+SHORT_TURN_SLACK = 180
+NIGHT_MIN_STOPS = 5        # 실측 운행은 정류장 통과가 이만큼은 있어야 쓴다
+NIGHT_BOARD_SLACK = 120    # 실측 시간표도 밤마다 조금씩 달라서 이만큼 일찍 와 있어야 탄다     # 공식 막차보다 이만큼 늦게 지나는 운행은 없는 것으로 본다
 INF32 = 2 ** 31 - 1
 EXCLUDED_BUS_TYPES = {"공항", "관광"}
 BUS_BOARD_SLACK_RATIO = 0.5   # 버스 가상 운행은 실제와 배차 간격만큼 어긋날 수 있어, 평균 대기(절반)만큼 일찍 와 있어야 탄다고 본다         # 공식 정류장 시각이 추정 기점 시각에서 이만큼 벗어나면 버린다   # 공식 막차·첫차에서 이 시간 안의 버스는 공식 시각 쪽으로 보정한다
@@ -171,6 +173,56 @@ def official_file(day):
     return files[-1] if files else None
 
 
+def night_files(day):
+    """build_night_timetable.py가 만든 심야버스 실측 운행. 같은 요일 유형이 없으면 다른 날 것을 쓴다."""
+    same = sorted(glob.glob(os.path.join(DATA, f"night_bus_trips_*_{day}.csv")))
+    return same or sorted(glob.glob(os.path.join(DATA, "night_bus_trips_*.csv")))
+
+
+def data_mtime(day):
+    """노선망을 다시 만들어야 하는지 볼 때 쓰는 바깥 데이터 파일의 최신 수정 시각."""
+    fs = night_files(day) + ([official_file(day)] if official_file(day) else [])
+    return max((os.path.getmtime(f) for f in fs), default=0)
+
+
+def load_night(day):
+    """→ {route_id: DataFrame(trip, sta_ord, st_id, sec)}. 노선마다 통과 기록이 가장 많은 밤 하나를 쓴다."""
+    best = {}
+    for path in night_files(day):
+        b = pd.read_csv(path, dtype={"route_id": str, "st_id": str, "trip": str}, encoding="utf-8-sig")
+        for rid, g in b.groupby("route_id"):
+            if rid not in best or len(g) > len(best[rid]):
+                best[rid] = g
+    return best
+
+
+def observed_times(obs, seqs, sids, simulate):
+    """실측 운행 → (기점 출발 시각, 운행 × 정류장 시각). 비어 있는 정류장은 구간 운행시간으로 채운다."""
+    if obs is None:
+        return None
+    pos = {int(q): i for i, q in enumerate(seqs)}
+    rows = []
+    for _, g in obs.groupby("trip"):
+        v = np.full(len(seqs), np.nan)
+        for q, st, sec in zip(g.sta_ord, g.st_id, g.sec):
+            i = pos.get(int(q))
+            if i is not None and sids[i] == st:
+                v[i] = sec
+        ok = np.flatnonzero(~np.isnan(v))
+        if len(ok) < NIGHT_MIN_STOPS:
+            continue
+        probe = simulate([int(v[ok[0]])])[0]
+        d = float(np.median(v[ok] - (probe[ok] - probe[0])))
+        sim = simulate([int(d)])[0]
+        t = sim + np.rint(fill_along(v - sim)).astype(np.int64)
+        rows.append(np.maximum.accumulate(t))
+    if not rows:
+        return None
+    times = np.array(sorted(rows, key=lambda t: t[0]), dtype=np.int64)
+    times = np.minimum.accumulate(times[::-1], axis=0)[::-1]       # 앞차가 뒤차보다 늦지 않게
+    return times[:, 0].copy(), times
+
+
 def load_official(day):
     """fetch_bus_times.py가 받은 정류장별 첫차·막차 → {route_id: {seq: (첫차, 막차)}} (운행일 기준 초)."""
     path = official_file(day)
@@ -234,7 +286,8 @@ def load_bus(net, day):
     code, seg_day = BUS_DAY[day]
     official, official_name = load_official(day)
     net.bus_official = official_name
-    n_official = 0
+    night = load_night(day)
+    n_official = n_observed = 0
     n_short_turn = [0]
     routes = pd.read_csv(os.path.join(PREP_OUT, "bus_routes.csv"), dtype={"route_id": str, "route_no": str})
     rs = pd.read_csv(os.path.join(PREP_OUT, "bus_route_stops.csv"), dtype={"route_id": str, "stop_id": str})
@@ -270,7 +323,8 @@ def load_bus(net, day):
             return out
 
         F = L = L_raw = None
-        off = official.get(r.route_id)
+        observed = observed_times(night.get(r.route_id), seqs, sids, simulate)
+        off = None if observed else official.get(r.route_id)
         if off:
             # 순서 번호와 정류장 ID가 모두 맞는 칸만, 뒤 정류장보다 늦은 값은 버린다
             F = clean_monotone(np.array([off[q][1] if q in off and off[q][0] == sid else np.nan
@@ -298,9 +352,16 @@ def load_bus(net, day):
                 F = L = None
                 first, last = getattr(r, f"{code}_first_sec"), getattr(r, f"{code}_last_sec")
         # 기점 출발 시각: 막차에서 배차 간격씩 거슬러 올라간다
-        n = int((last - first) // (hw * 60)) + 1
-        d0 = np.sort(last - np.arange(n) * hw * 60).astype(np.int64)
-        times = simulate(d0)
+        if observed:
+            # 심야버스 실측: 실제로 지나간 시각을 그대로 쓴다 (공식 값 보정·단축 운행은 건너뜀)
+            d0, times = observed
+            n_observed += 1
+            if len(d0) > 1:
+                hw = float(np.median(np.diff(d0))) / 60
+        else:
+            n = int((last - first) // (hw * 60)) + 1
+            d0 = np.sort(last - np.arange(n) * hw * 60).astype(np.int64)
+            times = simulate(d0)
         applied = False
         if L is not None and (~np.isnan(L)).sum() >= 2:
             applied = True
@@ -337,14 +398,15 @@ def load_bus(net, day):
         stop_idx = np.array([net.add_stop("bus", sid, stop_name.get(sid, sid)) for sid in seq.stop_id[keep]],
                             dtype=np.int32)
         times_arr, times_dep = times_arr[:, keep], times_dep[:, keep]
-        labels = [f"기점 {fmt(x)} 출발" for x in d0]
+        labels = [f"기점 {fmt(x)} 출발" + (" (실측)" if observed else "") for x in d0]
         net.routes.append(Route("bus", str(r.route_no), stop_idx, times_arr.astype(np.int32), times_dep.astype(np.int32),
                                 labels, headway_min=float(hw), route_id=r.route_id,
-                                board_slack=int(hw * 60 * BUS_BOARD_SLACK_RATIO),
-                                exact_first=applied and F is not None and (~np.isnan(F)).sum() >= 1,
-                                exact_last=applied, stop_seq=seq.seq.to_numpy()[keep].astype(np.int32),
+                                board_slack=NIGHT_BOARD_SLACK if observed else int(hw * 60 * BUS_BOARD_SLACK_RATIO),
+                                exact_first=bool(observed) or (applied and F is not None and (~np.isnan(F)).sum() >= 1),
+                                exact_last=bool(observed) or applied, stop_seq=seq.seq.to_numpy()[keep].astype(np.int32),
                                 route_type=r.route_type if isinstance(r.route_type, str) else None))
     net.bus_official_routes = n_official
+    net.bus_observed_routes = n_observed
     net.bus_short_turn_routes = n_short_turn[0]
     bus_pts = stops[(stops.has_coord == 1) & (stops.is_virtual == 0)]
     return bus_pts, skipped
@@ -395,6 +457,7 @@ def load(day="WD", rebuild=False):
               ("stop_times.csv", "stations.csv", "bus_routes.csv", "bus_segments.csv", "transfers.csv")]
     if official_file(day):
         inputs.append(official_file(day))
+    inputs += night_files(day)
     fresh = os.path.exists(path) and all(os.path.getmtime(path) > os.path.getmtime(f) for f in inputs)
     if fresh and not rebuild:
         with open(path, "rb") as f:
