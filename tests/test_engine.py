@@ -102,3 +102,20 @@ def test_subway_realtime_matches_train_number(monkeypatch):
     leg2 = dict(leg, trip="9999 성수행")                      # 번호가 없으면 같은 행선지 첫 열차
     assert realtime._annotate_rail(leg2, lead=120, now_sec=1000)["matched"] == "direction"
     assert realtime._annotate_rail(leg, lead=700, now_sec=1000)["status"] == "missed"
+
+
+def test_board_skips_blocked_first_trip():
+    # 반쪽 운행(첫 운행이 이 정류장을 안 지남)이 있어도 다음 운행을 탈 수 있어야 한다
+    from types import SimpleNamespace
+    col = np.array([raptor.INF, 1000, raptor.INF, 2000], dtype=np.int64)
+    r = SimpleNamespace(exact_first=True, exact_last=True, board_slack=120)
+    assert raptor._board_skipping_blocked(col, 500, r) == 1
+    assert raptor._board_skipping_blocked(col, 1500, r) == 3
+    assert raptor._board_skipping_blocked(col, 2500, r) == 4
+
+
+@needs_data
+def test_night_bus_hongdae_to_sadang(net_wd):
+    # 2026-11-08 심야버스 실측 반영 뒤: 네이버 02:45 (N75 직행)보다 늦지 않아야 한다
+    res = raptor.query(net_wd, HONGDAE, (37.476, 126.9816), 25 * 3600)
+    assert min(r["arrive"] for r in res) <= 26 * 3600 + 50 * 60

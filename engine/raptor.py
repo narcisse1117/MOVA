@@ -34,6 +34,19 @@ def nearby(net, lat, lon, radius=ACCESS_M):
     return best
 
 
+def _board_skipping_blocked(col, rt, r):
+    """막힌 운행(INF)이 섞인 정류장에서 탈 수 있는 첫 운행. 막히지 않은 운행만 놓고 같은 규칙을 쓴다."""
+    fin = np.flatnonzero(col < INF)
+    if not len(fin):
+        return len(col)
+    if r.exact_first and col[fin[0]] >= rt:
+        return int(fin[0])
+    j = int(np.searchsorted(col[fin], rt + r.board_slack, side="left"))
+    if r.exact_last and j >= len(fin) - 1 and col[fin[-1]] >= rt:
+        j = len(fin) - 1
+    return int(fin[j]) if j < len(fin) else len(col)
+
+
 def query(net, origin, dest, t0, max_legs=MAX_LEGS, return_state=False, skip_routes=None, extra_access=None):
     """origin, dest: (lat, lon). t0: 운행일 기준 초. 결과: 탈것 수가 적은 순으로 더 빨라지는 경로 목록."""
     n = len(net.stop_id)
@@ -87,7 +100,9 @@ def query(net, origin, dest, t0, max_legs=MAX_LEGS, return_state=False, skip_rou
                 if rt < INF and (trip < 0 or rt <= D[trip, i]):
                     # 공식 시각인 첫·막 운행은 그대로, 가상 운행은 board_slack만큼 일찍 와 있어야 탄다
                     n_trips = len(D)
-                    if r.exact_first and D[0, i] >= rt:
+                    if r.has_blocked:
+                        t = _board_skipping_blocked(D[:, i], rt, r)
+                    elif r.exact_first and D[0, i] >= rt:
                         t = 0
                     else:
                         t = int(np.searchsorted(D[:, i], rt + r.board_slack, side="left"))

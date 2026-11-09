@@ -25,7 +25,7 @@ ENGINE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(ENGINE)
 PREP_OUT = os.path.join(ROOT, "prep", "out")
 CACHE = os.path.join(ENGINE, "cache")
-CACHE_VERSION = 12
+CACHE_VERSION = 14
 DATA = os.path.join(ROOT, "데이터")
 OFFICIAL_BLEND_SEC = 7200
 OUTLIER_SEC = 1800
@@ -64,6 +64,7 @@ class Route:
     exact_last: bool = False  # 마지막 운행이 공식 시각
     stop_seq: np.ndarray = None  # 버스: 정류장마다 노선 순서 번호 (실시간 API의 ord)
     route_type: str = None       # 버스: 간선·지선·순환·마을·광역 (요금 계산용)
+    has_blocked: bool = False  # 막힌 칸(INF)이 있으면 탈 운행을 찾을 때 건너뛰어야 한다
 
 
 @dataclass
@@ -197,11 +198,13 @@ def load_night(day):
 
 
 def observed_times(obs, seqs, sids, simulate):
-    """실측 운행 → (기점 출발 시각, 운행 × 정류장 시각). 비어 있는 정류장은 구간 운행시간으로 채운다."""
+    """실측 운행 → (기점 출발 시각, 운행 × 정류장 시각, 막을 칸).
+    관측한 정류장 사이의 빈칸은 구간 운행시간으로 채운다. 관측 범위 밖(양쪽 끝 차고지에서 출발해 노선의 반만 돌거나
+    수집 시간 밖)은 실제로 다녔는지 모르므로 막는다."""
     if obs is None:
         return None
     pos = {int(q): i for i, q in enumerate(seqs)}
-    rows = []
+    rows, spans = [], []
     for _, g in obs.groupby("trip"):
         v = np.full(len(seqs), np.nan)
         for q, st, sec in zip(g.sta_ord, g.st_id, g.sec):
@@ -216,11 +219,15 @@ def observed_times(obs, seqs, sids, simulate):
         sim = simulate([int(d)])[0]
         t = sim + np.rint(fill_along(v - sim)).astype(np.int64)
         rows.append(np.maximum.accumulate(t))
+        spans.append((ok[0], ok[-1]))
     if not rows:
         return None
-    times = np.array(sorted(rows, key=lambda t: t[0]), dtype=np.int64)
+    order = np.argsort([t[0] for t in rows], kind="stable")
+    times = np.array([rows[i] for i in order], dtype=np.int64)
     times = np.minimum.accumulate(times[::-1], axis=0)[::-1]       # 앞차가 뒤차보다 늦지 않게
-    return times[:, 0].copy(), times
+    col = np.arange(len(seqs))
+    blocked = np.array([(col < spans[i][0]) | (col > spans[i][1]) for i in order])
+    return times[:, 0].copy(), times, blocked
 
 
 def load_official(day):
@@ -354,7 +361,7 @@ def load_bus(net, day):
         # 기점 출발 시각: 막차에서 배차 간격씩 거슬러 올라간다
         if observed:
             # 심야버스 실측: 실제로 지나간 시각을 그대로 쓴다 (공식 값 보정·단축 운행은 건너뜀)
-            d0, times = observed
+            d0, times, night_blocked = observed
             n_observed += 1
             if len(d0) > 1:
                 hw = float(np.median(np.diff(d0))) / 60
@@ -379,6 +386,9 @@ def load_bus(net, day):
             times = np.minimum.accumulate(times[::-1], axis=0)[::-1]
         times_arr = times.copy()
         times_dep = times.copy()
+        if observed:
+            times_arr[night_blocked] = INF32
+            times_dep[night_blocked] = INF32
         if L_raw is not None:
             # 단축 운행: 공식 막차보다 늦게 지나는 운행은 그 정류장에서 타고 내릴 수 없다.
             # 튀는 값 하나로 막지 않게, 이웃 정류장도 같이 이른 경우만 적용한다
@@ -398,13 +408,19 @@ def load_bus(net, day):
         stop_idx = np.array([net.add_stop("bus", sid, stop_name.get(sid, sid)) for sid in seq.stop_id[keep]],
                             dtype=np.int32)
         times_arr, times_dep = times_arr[:, keep], times_dep[:, keep]
-        labels = [f"기점 {fmt(x)} 출발" + (" (실측)" if observed else "") for x in d0]
+        if observed:      # 반쪽 운행도 있어서 실제로 처음 본 정류장 기준
+            first_i = np.argmax(~night_blocked, axis=1)
+            nm = lambda sid: stop_name.get(sid) if isinstance(stop_name.get(sid), str) else "정류장"
+            labels = [f"{nm(sids[j])} {fmt(times[k, j])} 출발 (실측)" for k, j in enumerate(first_i)]
+        else:
+            labels = [f"기점 {fmt(x)} 출발" for x in d0]
         net.routes.append(Route("bus", str(r.route_no), stop_idx, times_arr.astype(np.int32), times_dep.astype(np.int32),
                                 labels, headway_min=float(hw), route_id=r.route_id,
                                 board_slack=NIGHT_BOARD_SLACK if observed else int(hw * 60 * BUS_BOARD_SLACK_RATIO),
                                 exact_first=bool(observed) or (applied and F is not None and (~np.isnan(F)).sum() >= 1),
                                 exact_last=bool(observed) or applied, stop_seq=seq.seq.to_numpy()[keep].astype(np.int32),
-                                route_type=r.route_type if isinstance(r.route_type, str) else None))
+                                route_type=r.route_type if isinstance(r.route_type, str) else None,
+                                has_blocked=bool((times_dep >= INF32).any())))
     net.bus_official_routes = n_official
     net.bus_observed_routes = n_observed
     net.bus_short_turn_routes = n_short_turn[0]
