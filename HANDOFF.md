@@ -124,4 +124,4 @@
 17. ~~지하철 실시간~~ 완료 (2026-11-08): 실시간 전용 키 `데이터/seoul_subway_key.txt`, 같은 열차 번호 → 없으면 같은 행선지 첫 열차 (데이터 출처, 실시간 반영)
 
 - 보안 그룹 SSH(22)는 "내 IP"만 허용 → 장소(IP)가 바뀌면 EC2 → 보안 그룹 launch-wizard-1 → 인바운드 규칙 편집에서 SSH 소스를 다시 "내 IP"로
-- AWS 콘솔 계정: 계정 ID `277576839933`, 리전 시드니(ap-southeast-2). 로그인 https://277576839933.signin.aws.amazon.com/console 또는 루트 사용자 이메일
+- AWS 콘솔 계정: narcisse1117@gmail.com (루트), 계정 ID `277576839933`, 서버는 시드니(ap-southeast-2)에만 있음. 결제 화면은 us-east-1 주소로 뜨지만 같은 계정. 로그인 https://277576839933.signin.aws.amazon.com/console 또는 루트 사용자 이메일
