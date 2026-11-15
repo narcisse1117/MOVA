@@ -1,0 +1,27 @@
+.group {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-subtle);
+}
+
+.option {
+  flex: 1;
+  padding: 12px 0;
+  border: 0;
+  border-radius: var(--radius-segment);
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.selected {
+  background: var(--primary-default);
+  color: var(--text-on-primary);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--primary-default);
+  outline-offset: 2px;
+}
