@@ -1,0 +1,32 @@
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 16px;
+  background: var(--surface-default);
+}
+
+.icon {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text-strong);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-strong);
+}
+
+.action {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}

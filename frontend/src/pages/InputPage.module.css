@@ -1,0 +1,87 @@
+.hero {
+  color: var(--text-strong);
+}
+
+.accent {
+  color: var(--accent-yellow);
+}
+
+.muted {
+  color: var(--text-disabled);
+}
+
+.route {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.swapRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.autocomplete {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+}
+
+.suggestion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: var(--surface-default);
+  text-align: left;
+}
+
+.suggestion:hover,
+.suggestionActive {
+  background: var(--surface-subtle);
+}
+
+.suggestionName {
+  color: var(--text-strong);
+}
+
+.suggestionSub {
+  color: var(--text-tertiary);
+}
+
+.timeGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label {
+  color: var(--text-tertiary);
+}
+
+.caret {
+  font-size: 14px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.help {
+  color: var(--text-tertiary);
+}
+
+.error {
+  color: #d23b3b;
+}
+
+.footer {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  color: var(--text-tertiary);
+}
