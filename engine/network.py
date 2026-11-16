@@ -25,7 +25,7 @@ ENGINE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(ENGINE)
 PREP_OUT = os.path.join(ROOT, "prep", "out")
 CACHE = os.path.join(ENGINE, "cache")
-CACHE_VERSION = 15
+CACHE_VERSION = 16
 DATA = os.path.join(ROOT, "데이터")
 OFFICIAL_BLEND_SEC = 7200     # 공식 막차·첫차에서 이 시간 안의 버스는 공식 시각 쪽으로 보정한다
 OUTLIER_SEC = 1800            # 공식 정류장 시각이 추정 기점 시각에서 이만큼 벗어나면 버린다
@@ -187,12 +187,14 @@ def data_mtime(day):
 
 
 def load_night(day):
-    """→ {route_id: DataFrame(trip, sta_ord, st_id, sec)}. 노선마다 통과 기록이 가장 많은 밤 하나를 쓴다."""
+    """→ {route_id: DataFrame(trip, sta_ord, st_id, sec)}. 노선마다 가장 최근 밤을 쓴다 (시간표 개편을 바로 따라가게).
+    밤끼리 차이는 중앙 2분 정도라 평균을 내도 크게 나아지지 않는다 (2026-11-16, 일·수·금 비교).
+    기록이 평소의 절반도 안 되는 밤(수집이 중간에 끊김)은 건너뛴다."""
     best = {}
-    for path in night_files(day):
+    for path in night_files(day):          # 날짜순이라 뒤의 밤이 앞의 밤을 덮는다
         b = pd.read_csv(path, dtype={"route_id": str, "st_id": str, "trip": str}, encoding="utf-8-sig")
         for rid, g in b.groupby("route_id"):
-            if rid not in best or len(g) > len(best[rid]):
+            if rid not in best or len(g) >= 0.5 * len(best[rid]):
                 best[rid] = g
     return best
 
