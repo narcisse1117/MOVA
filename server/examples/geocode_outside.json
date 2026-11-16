@@ -1,0 +1,20 @@
+{
+  "request": "GET /api/geocode?q=정자역",
+  "response": {
+    "query": "정자역",
+    "results": [
+      {
+        "kind": "station",
+        "label": "정자역",
+        "address": "분당선, 신분당선",
+        "lat": 37.367124,
+        "lng": 127.108238,
+        "region": "경기 성남시 분당구",
+        "in_seoul": false
+      }
+    ],
+    "notes": [
+      "서울 밖 장소만 찾았어요. 지금은 서울 안 출발·도착만 안내해요"
+    ]
+  }
+}
