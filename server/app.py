@@ -233,18 +233,57 @@ def stations():
 
 
 SEOUL_BOX = (37.4, 37.72, 126.75, 127.2)
+SIDO_SHORT = {"서울특별시": "서울", "부산광역시": "부산", "대구광역시": "대구", "인천광역시": "인천", "광주광역시": "광주",
+              "대전광역시": "대전", "울산광역시": "울산", "세종특별자치시": "세종", "경기도": "경기", "강원특별자치도": "강원",
+              "강원도": "강원", "충청북도": "충북", "충청남도": "충남", "전북특별자치도": "전북", "전라북도": "전북",
+              "전라남도": "전남", "경상북도": "경북", "경상남도": "경남", "제주특별자치도": "제주"}
 
 
 def in_seoul(lat, lng):
+    """좌표 대충 범위 (주소를 모를 때만 쓴다)."""
     return SEOUL_BOX[0] <= lat <= SEOUL_BOX[1] and SEOUL_BOX[2] <= lng <= SEOUL_BOX[3]
+
+
+def region_of(address):
+    """'서울특별시 강남구 강남대로 396' → '서울 강남구', '경기도 성남시 분당구 …' → '경기 성남시 분당구'. 모르면 None."""
+    t = (address or "").split()
+    if not t:
+        return None
+    sido = SIDO_SHORT.get(t[0], t[0] if t[0] in SIDO_SHORT.values() else None)
+    if sido is None:
+        return None
+    parts = []
+    for w in t[1:3]:
+        if w.endswith(("시", "군", "구")):
+            parts.append(w)
+        else:
+            break
+    return " ".join([sido] + parts)
+
+
+def _station_region(lat, lng):
+    r = naver.reverse(lat, lng)
+    if not r:
+        return None
+    return region_of(f"{r['si']} {r['gu']}")
+
+
+def _with_region(item, address):
+    """결과에 region(예: 서울 강남구)과 in_seoul을 붙인다. 주소를 모르면 좌표 범위로 서울인지 본다."""
+    reg = region_of(address)
+    item["region"] = reg
+    item["in_seoul"] = reg.startswith("서울") if reg else in_seoul(item["lat"], item["lng"])
+    return item
 
 
 @app.get("/api/geocode")
 def geocode(q: str):
-    """검색어 → 후보. 역 이름은 우리 역 목록, 주소는 네이버 Geocoding, 가게·장소 이름은 네이버 지역 검색. 서울 범위만."""
+    """검색어 → 후보. 역 이름은 우리 역 목록, 주소는 네이버 Geocoding, 가게·장소 이름은 네이버 지역 검색.
+    결과마다 region(예: 서울 강남구)과 in_seoul. 서울 밖도 돌려주고(in_seoul=false) 서울 안을 앞에 둔다
+    → 프론트가 서울 밖을 고르면 안내 화면(E1)으로 보낸다."""
     q = q.strip()
     if not q:
-        return {"query": q, "results": []}
+        return {"query": q, "results": [], "notes": []}
     out = []
     key = q.replace("역", "").strip()
     st = stations()
@@ -253,22 +292,28 @@ def geocode(q: str):
     if m.empty and len(key) >= 2:
         m = st[st.key.str.startswith(key)].head(5)
     for r in m.itertuples():
-        if in_seoul(r.lat, r.lng):
-            out.append({"kind": "station", "label": f"{r.name}역" if not r.name.endswith("역") else r.name,
-                        "address": ", ".join(l.replace("서울 도시철도 ", "") for l in r.lines),
-                        "lat": round(r.lat, 6), "lng": round(r.lng, 6)})
-    addresses = [a for a in naver.geocode(q) if in_seoul(a["lat"], a["lng"])]
+        item = {"kind": "station", "label": f"{r.name}역" if not r.name.endswith("역") else r.name,
+                "address": ", ".join(l.replace("서울 도시철도 ", "") for l in r.lines),
+                "lat": round(r.lat, 6), "lng": round(r.lng, 6)}
+        sr = _station_region(r.lat, r.lng)
+        out.append(_with_region(item, sr))
+    addresses = naver.geocode(q)
     # 주소로 딱 맞으면 가게 검색은 건너뛴다 (호출 절약). 아니면 가게·장소 이름으로 찾는다
     if not addresses and not exact_station:
         for p in naver.local_search(q):
-            if in_seoul(p["lat"], p["lng"]):
-                out.append({"kind": "place", "label": p["name"], "address": p["address"],
-                            "category": p["category"], "lat": round(p["lat"], 6), "lng": round(p["lng"], 6)})
+            out.append(_with_region({"kind": "place", "label": p["name"], "address": p["address"],
+                                     "category": p["category"], "lat": round(p["lat"], 6), "lng": round(p["lng"], 6)},
+                                    p["address"]))
     for a in addresses:
-        out.append({"kind": "address", "label": a["address"], "address": a["jibun"],
-                    "lat": a["lat"], "lng": a["lng"]})
-    return {"query": q, "results": out[:10],
-            "notes": [] if out else ["역 이름, 가게·장소 이름, 도로명·지번 주소로 검색해 주세요 (서울 안만)"]}
+        out.append(_with_region({"kind": "address", "label": a["address"], "address": a["jibun"],
+                                 "lat": a["lat"], "lng": a["lng"]}, a["address"]))
+    out.sort(key=lambda x: not x["in_seoul"])          # 서울 안 먼저 (같은 쪽끼리는 원래 순서)
+    notes = []
+    if not out:
+        notes.append("역 이름, 가게·장소 이름, 도로명·지번 주소로 검색해 주세요")
+    elif not any(x["in_seoul"] for x in out):
+        notes.append("서울 밖 장소만 찾았어요. 지금은 서울 안 출발·도착만 안내해요")
+    return {"query": q, "results": out[:10], "notes": notes}
 
 
 @app.get("/api/reverse")

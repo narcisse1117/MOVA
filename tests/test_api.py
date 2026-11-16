@@ -66,3 +66,19 @@ def test_cors_only_allowed_origins(client):
     assert ok.headers.get("access-control-allow-origin") == "http://localhost:5173"
     assert vercel.headers.get("access-control-allow-origin") == "https://mova.vercel.app"
     assert bad.status_code == 400
+
+
+def test_region_of_address():
+    assert app_mod.region_of("서울특별시 강남구 강남대로 396") == "서울 강남구"
+    assert app_mod.region_of("경기도 성남시 분당구 성남대로 지하 333") == "경기 성남시 분당구"
+    assert app_mod.region_of("") is None
+
+
+def test_geocode_keeps_outside_seoul_flagged(client, monkeypatch):
+    # 서울 밖도 돌려주되 in_seoul=false, 서울 안이 먼저
+    monkeypatch.setattr(app_mod.naver, "local_search", lambda q: [
+        {"name": "판교 카페", "address": "경기도 성남시 분당구 판교역로 1", "category": "카페", "lat": 37.39, "lng": 127.11},
+        {"name": "강남 카페", "address": "서울특별시 강남구 테헤란로 1", "category": "카페", "lat": 37.50, "lng": 127.03}])
+    r = client.get("/api/geocode", params={"q": "없는역이름카페"}).json()["results"]
+    assert [x["in_seoul"] for x in r] == [True, False]
+    assert r[0]["region"] == "서울 강남구" and r[1]["region"] == "경기 성남시 분당구"
