@@ -82,3 +82,31 @@ def test_geocode_keeps_outside_seoul_flagged(client, monkeypatch):
     r = client.get("/api/geocode", params={"q": "없는역이름카페"}).json()["results"]
     assert [x["in_seoul"] for x in r] == [True, False]
     assert r[0]["region"] == "서울 강남구" and r[1]["region"] == "경기 성남시 분당구"
+
+
+def test_resolve_time_clock_only():
+    mon_14 = dt.datetime(2026, 11, 16, 14, 0, tzinfo=KST)          # 월 14:00
+    assert app_mod.resolve_time("23:40", mon_14) == dt.datetime(2026, 11, 16, 23, 40, tzinfo=KST)
+    assert app_mod.resolve_time("00:30", mon_14) == dt.datetime(2026, 11, 17, 0, 30, tzinfo=KST)   # 같은 밤 새벽
+    tue_0010 = dt.datetime(2026, 11, 17, 0, 10, tzinfo=KST)        # 화 00:10 (월요일 밤)
+    assert app_mod.resolve_time("00:30", tue_0010) == dt.datetime(2026, 11, 17, 0, 30, tzinfo=KST)
+    assert app_mod.resolve_time("23:50", tue_0010) == dt.datetime(2026, 11, 16, 23, 50, tzinfo=KST)  # 20분 전: 그대로
+    assert app_mod.resolve_time("23:00", tue_0010) == dt.datetime(2026, 11, 17, 23, 0, tzinfo=KST)   # 지났음: 다음 밤
+    assert app_mod.resolve_time("now", mon_14) == mon_14 and app_mod.resolve_time(None, mon_14) == mon_14
+    with pytest.raises(ValueError):
+        app_mod.resolve_time("25:00", mon_14)
+
+
+def test_routes_rejects_bad_time(client):
+    body = {"origin": {"lat": 37.55, "lng": 126.92}, "destination": {"lat": 37.65, "lng": 127.06}, "departure_time": "밤"}
+    assert client.post("/api/routes", json=body).status_code == 422
+
+
+def test_resolve_time_iso_string():
+    assert app_mod.resolve_time("2026-11-09T23:30") == dt.datetime(2026, 11, 9, 23, 30, tzinfo=KST)
+    assert app_mod.resolve_time("2026-11-09T14:30:00Z") == dt.datetime(2026, 11, 9, 23, 30, tzinfo=KST)
+
+
+def test_routes_time_omitted_means_now():
+    req = app_mod.RouteRequest(origin={"lat": 37.55, "lng": 126.92}, destination={"lat": 37.65, "lng": 127.06})
+    assert abs((req.departure_time - dt.datetime.now(KST)).total_seconds()) < 5

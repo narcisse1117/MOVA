@@ -60,6 +60,13 @@ python -m uvicorn server.app:app --reload --port 8000
  "departure_time": "2026-11-10T00:30"}
 ```
 
+`departure_time`은 세 가지 다 받는다 (`/api/deadline`의 `from_time`도 같음):
+- `"now"` 또는 생략 → 지금
+- `"23:40"`처럼 시:분만 → **오늘 밤** 기준. 03시 전(`"00:30"`)은 다음 날 새벽. 그 시각이 지금보다 30분 넘게 지났으면 다음 날 밤 (예: 화 00:10에 `"23:40"` → 화 23:40)
+- `"2026-11-10T00:30"` → 그대로
+
+S1 화면의 출발 시각 값(`"now"`, `"23:40"`)을 그대로 보내면 된다. 서버가 정한 실제 시각은 응답 `departure`에 나온다.
+
 출발이 지금부터 20분 안이면 `live: true`이고, 첫 탈것(버스·지하철) 구간에 `realtime`이 붙는다 (지하철은 `matched`: `train` 같은 열차 / `direction` 같은 행선지): `status`(`ok`/`later`/`earlier`/`missed`/`ended`/`unknown`), `arrive_in_sec`, `realtime_dep`, `delay_sec`(엔진 예정 대비), `is_last`(막차), `message`, `plate`. 예시: `server/examples/routes_live_now.json`.
 
 응답 `options`: `kind`가 `taxi`(택시 직행) / `transit`(대중교통만, 탈것 수별로 여러 개일 수 있음) / `combo`(조합, `recommended: true`가 추천, `combo_kind`는 `taxi_last` 마지막 택시 / `taxi_first` 처음 택시 / `taxi_both` 양쪽). 각 항목에 `arrival`, `duration_min`, `fare`, `fare_detail{transit, taxi}`, `legs`.

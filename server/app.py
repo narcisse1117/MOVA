@@ -16,7 +16,8 @@ import secrets
 import sqlite3
 import sys
 import threading
-from typing import List, Optional  # noqa: F401
+import re
+from typing import List, Optional, Union  # noqa: F401
 
 import time
 from collections import defaultdict, deque
@@ -24,7 +25,7 @@ from collections import defaultdict, deque
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "engine"))
@@ -110,6 +111,42 @@ def is_live(when: dt.datetime) -> bool:
     return abs((when - dt.datetime.now(KST)).total_seconds()) <= 20 * 60
 
 
+PAST_GRACE = dt.timedelta(minutes=30)
+
+
+def resolve_time(value, now=None) -> dt.datetime:
+    """출발 시각 입력 → 실제 시각(KST).
+    - 날짜까지 있는 시각(2026-11-16T23:40)은 그대로
+    - "now" 또는 빈 값은 지금
+    - "23:40"처럼 시:분만 오면 '오늘 밤' 기준: 03시 전(00:30 등)은 다음 날 새벽.
+      그렇게 정한 시각이 지금보다 30분 넘게 지났으면 다음 날 밤으로 본다
+      (예: 화 00:10에 "23:40"을 고르면 화 23:40)"""
+    now = (now or dt.datetime.now(KST)).astimezone(KST)
+    if value is None or isinstance(value, dt.datetime):
+        if value is None:
+            return now
+        return value if value.tzinfo else value.replace(tzinfo=KST)
+    v = str(value).strip().lower()
+    if v in ("", "now"):
+        return now
+    if "t" in v or "-" in v:                       # 날짜까지 있는 시각이 문자열로 온 경우
+        try:
+            return resolve_time(dt.datetime.fromisoformat(str(value).strip().replace("Z", "+00:00")), now)
+        except ValueError:
+            raise ValueError('시각은 "now", "23:40" 같은 시:분, 또는 2026-11-16T23:40 형식이에요')
+    m = re.fullmatch(r"(\d{1,2}):(\d{2})", v)
+    if not m or int(m.group(1)) > 23 or int(m.group(2)) > 59:
+        raise ValueError('시각은 "now", "23:40" 같은 시:분, 또는 2026-11-16T23:40 형식이에요')
+    h, mi = int(m.group(1)), int(m.group(2))
+    base = now.date() if now.hour >= 3 else now.date() - dt.timedelta(days=1)    # 지금의 운행일
+    t = dt.datetime.combine(base, dt.time(h, mi), tzinfo=KST)
+    if h < 3:
+        t += dt.timedelta(days=1)
+    if t < now - PAST_GRACE:
+        t += dt.timedelta(days=1)
+    return t
+
+
 def to_iso(day: dt.date, sec: int) -> str:
     t = dt.datetime.combine(day, dt.time(0), tzinfo=KST) + dt.timedelta(seconds=int(sec))
     return t.isoformat(timespec="seconds")
@@ -145,13 +182,25 @@ class Point(BaseModel):
 class RouteRequest(BaseModel):
     origin: Point
     destination: Point
-    departure_time: dt.datetime = Field(..., description="출발 시각, 예: 2026-11-09T23:30")
+    departure_time: Optional[Union[dt.datetime, str]] = Field(
+        None, validate_default=True, description='출발 시각: "now"(또는 생략) / "23:40" (오늘 밤 기준, 03시 전은 다음 날 새벽) / 2026-11-09T23:30')
+
+    @field_validator("departure_time", mode="after")
+    @classmethod
+    def _resolve(cls, v):
+        return resolve_time(v)
 
 
 class DeadlineRequest(BaseModel):
     origin: Point
     destination: Point
-    from_time: dt.datetime = Field(..., description="이 시각 이후로 출발 마감을 찾는다, 예: 2026-11-09T21:00")
+    from_time: Optional[Union[dt.datetime, str]] = Field(
+        None, validate_default=True, description='이 시각 이후로 출발 마감을 찾는다: "now"(또는 생략) / "21:00" / 2026-11-09T21:00')
+
+    @field_validator("from_time", mode="after")
+    @classmethod
+    def _resolve(cls, v):
+        return resolve_time(v)
 
 
 class GroupCreate(BaseModel):
