@@ -95,13 +95,26 @@ def service_day(when: dt.datetime):
     if when.hour < 3:
         day -= dt.timedelta(days=1)
         sec += 86400
+    return day, sec, day_type_of(day)
+
+
+OVERLAP_HOURS = range(3, 6)     # 03~05시: 전날 밤(심야버스 04시 반까지)과 새 날(첫 버스 04시대, 첫차 05시대)이 겹친다
+
+
+def service_day_candidates(when: dt.datetime):
+    """03~05시 출발은 전날 운행일(심야버스)과 새 운행일(첫차) 둘 다 본다 → [(운행일, 초, 요일 유형)]."""
+    day, sec, dtype = service_day(when)
+    out = [(day, sec, dtype)]
+    if when.astimezone(KST).hour in OVERLAP_HOURS:
+        prev = day - dt.timedelta(days=1)
+        out.insert(0, (prev, sec + 86400, day_type_of(prev)))
+    return out
+
+
+def day_type_of(day):
     if day.isoformat() in HOLIDAYS or day.weekday() == 6:
-        dtype = "HOL"
-    elif day.weekday() == 5:
-        dtype = "SAT"
-    else:
-        dtype = "WD"
-    return day, sec, dtype
+        return "HOL"
+    return "SAT" if day.weekday() == 5 else "WD"
 
 
 def is_live(when: dt.datetime) -> bool:
@@ -377,10 +390,16 @@ def reverse(lat: float, lng: float):
 @app.post("/api/routes")
 def routes(req: RouteRequest):
     """F1·F2: 택시 직행 / 대중교통만 / 대중교통 + 택시 조합."""
-    day, t0, dtype = service_day(req.departure_time)
-    net = get_net(dtype)
     live = is_live(req.departure_time)
-    p = raptor.plan(net, (req.origin.lat, req.origin.lng), (req.destination.lat, req.destination.lng), t0, live=live)
+    best = None
+    for day, t0, dtype in service_day_candidates(req.departure_time):
+        p = raptor.plan(get_net(dtype), (req.origin.lat, req.origin.lng), (req.destination.lat, req.destination.lng),
+                        t0, live=live)
+        arrivals = [r["arrive"] - t0 for r in p["transit"] + p["combo"]]
+        score = min(arrivals) if arrivals else float("inf")         # 출발부터 걸리는 시간 (운행일이 달라도 비교 가능)
+        if best is None or score < best[0]:
+            best = (score, day, t0, dtype, p)
+    _, day, t0, dtype, p = best
     if live:
         # 첫 버스 실시간: 지금 시각을 운행일 기준 초로
         _, now_sec, _ = service_day(dt.datetime.now(KST))

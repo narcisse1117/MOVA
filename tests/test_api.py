@@ -110,3 +110,23 @@ def test_resolve_time_iso_string():
 def test_routes_time_omitted_means_now():
     req = app_mod.RouteRequest(origin={"lat": 37.55, "lng": 126.92}, destination={"lat": 37.65, "lng": 127.06})
     assert abs((req.departure_time - dt.datetime.now(KST)).total_seconds()) < 5
+
+
+def test_early_morning_checks_both_service_days():
+    """03~05시는 전날 밤(심야버스)과 새 날(첫차) 운행일을 둘 다 본다. 그 밖에는 하나만."""
+    c = app_mod.service_day_candidates(dt.datetime(2026, 11, 17, 3, 30, tzinfo=KST))
+    assert [(d.isoformat(), s) for d, s, _ in c] == [("2026-11-16", 27 * 3600 + 1800), ("2026-11-17", 3 * 3600 + 1800)]
+    assert len(app_mod.service_day_candidates(dt.datetime(2026, 11, 17, 14, 0, tzinfo=KST))) == 1
+    assert len(app_mod.service_day_candidates(dt.datetime(2026, 11, 17, 6, 0, tzinfo=KST))) == 1
+    sat = app_mod.service_day_candidates(dt.datetime(2026, 11, 22, 4, 0, tzinfo=KST))     # 일요일 새벽 = 토요일 밤
+    assert [t for _, _, t in sat] == ["SAT", "HOL"]
+
+
+@needs_data
+def test_routes_330am_finds_night_bus(client):
+    r = client.post("/api/routes", json={"origin": {"lat": 37.5572, "lng": 126.9245},
+                                         "destination": {"lat": 37.4766, "lng": 126.9816},
+                                         "departure_time": "2026-11-17T03:30"}).json()
+    assert r["service_day"] == "2026-11-16"
+    routes = {l.get("line") for o in r["options"] for l in o["legs"]}
+    assert any(str(x).startswith("N") for x in routes if x)

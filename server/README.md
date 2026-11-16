@@ -19,7 +19,7 @@ python -m uvicorn server.app:app --reload --port 8000
 
 - **좌표:** `{"lat": 37.55, "lng": 126.92, "label": "홍대입구역"}`. `label`은 화면 표시용이라 빼도 된다. 1차 범위는 서울
 - **시각:** 요청은 `2026-11-09T23:30`처럼 서울 시각. 응답은 `2026-11-10T00:30:00+09:00`
-- **운행일:** 03시 전은 전날 운행일로 본다. 응답의 `service_day`, `day_type`(`WD`/`SAT`/`HOL`)으로 알 수 있다
+- **운행일:** 03시 전은 전날 운행일로 본다. 03~05시 출발은 전날 밤(심야버스)과 새 날(첫차·첫 버스)을 둘 다 찾아보고 더 빨리 도착하는 쪽을 쓴다. 응답의 `service_day`, `day_type`(`WD`/`SAT`/`HOL`)으로 알 수 있다. 출발 시각은 하루 중 언제든 된다
 - **구간(`legs`) 종류:** `walk`(걷기, `duration_sec`), `subway`, `bus`(`line`, `departure`, `arrival`, `stops`, 버스는 `headway_min`), `taxi`(`wait_sec`, `drive_sec`, `distance_m`, `fare`, `fare_range`, `source`: `naver_live` 네이버 실시간 / `naver` 네이버 거리 + 심야 속도 / `estimate` 직선거리 추정)
 
 ## 접근 제한
