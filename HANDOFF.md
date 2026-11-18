@@ -82,7 +82,7 @@
 - 접속: `ssh -i C:\Users\osh\.ssh\mova.pem ubuntu@32.237.22.34` (키는 레포 밖에 보관)
 - 코드 업데이트: 서버에서 `cd ~/MOVA && git pull && sudo systemctl restart mova` (GitHub Deploy key `ec2-sydney`, 읽기 전용)
 - 데이터(`prep/out`, `데이터/` 키·공식 시각)는 GitHub에 없어서 scp로 올림 (`deploy/upload.ps1`)
-- cron: 월·토 14:00 공식 막차, 수·금 22:50 심야버스 수집. 2026-11-08(일) 밤 심야버스 수집은 서버에서 실행 중
+- cron: 월·토 14:00 공식 막차, 수·금·토 22:50 심야버스 수집(토는 2026-11-18 추가). 2026-11-08(일) 밤 심야버스 수집은 서버에서 실행 중
 - **접근 제한 (2026-11-08):** CORS는 localhost·`*.vercel.app`만, IP별 요청 제한(무거운 요청 1분 20·하루 300), 네이버 하루 1,900건 상한. 프론트 주소 정해지면 `config/app.json` `cors_origins`에 추가
 - 자세한 건 `deploy/README.md`
 
@@ -121,7 +121,7 @@
 10. ~~API 서버~~ 1차 완료 (2026-11-08, FastAPI — 프론트와 스택 확정 전 임시): `python -m uvicorn server.app:app --port 8000`, 문서 `/docs`. `POST /api/routes`, `POST /api/deadline`, `POST/GET /api/groups`, 멤버 추가. 응답 예시 `server/examples/*.json` → **프론트에 전달**. 서비스 이름은 `config/app.json`. 남은 것: 택시 묶기·정산·송금 링크, 실시간 첫 구간, 배포
 11. ~~택시 묶기·정산·송금 링크~~ 1차 완료 (2026-11-08): `engine/groups.py`, `GET /api/groups/{id}?leave_at=`. 막차 끊긴 사람끼리 절약량 병합(4명, 20분 이내 우회), 내리는 곳 기준 구간 정산, 송금 링크는 뺌(2026-11-08 결정: 송금은 각자, 서비스는 예상 금액 + 내린 뒤 실제 금액 나누기 `POST /api/settle`만)
 12. ~~네이버 Directions 5 연동~~ 완료 (2026-11-08): 키 `데이터/naver_key.txt`, `engine/naver.py`. 화면에 보여줄 택시 구간만 실제 경로(검색당 평균 3.3건), 모임 택시는 경유지로 1대당 1건. 월 55,000건 넘으면 추정. 우회 계수 1.35 → 1.5로 보정. 처음 택시→열차 3분 여유. **Application Services > Maps로 신청해야 무료(AI NAVER API 쪽은 무료 없음)**. Geocoding·Reverse Geocoding도 같은 키로 쓸 수 있음(주소 입력용, 아직 안 붙임)
-13. **네이버 대조 결과 (2026-11-08):** 4개 중 지하철·일반버스 3개 일치 → **ODsay 전환 불필요**. 심야버스 경로는 가상 시각 때문에 22분 낙관적 → 가상 운행은 배차 절반만큼 일찍 와야 탄다고 보수적으로 바꿈(지금은 6~11분 보수적). **심야버스 실측 (2026-11-09):** `prep/collect_night_bus.py`로 모은 기록 → `prep/build_night_timetable.py` → `데이터/night_bus_trips_YYYYMMDD_<요일>.csv` → 엔진이 N버스는 실측 운행을 그대로 씀(대기 여유 2분). 같은 요일 유형이 없으면 다른 날 것. 서버 cron 목·토 05:00 자동 생성
+13. **네이버 대조 결과 (2026-11-08):** 4개 중 지하철·일반버스 3개 일치 → **ODsay 전환 불필요**. 심야버스 경로는 가상 시각 때문에 22분 낙관적 → 가상 운행은 배차 절반만큼 일찍 와야 탄다고 보수적으로 바꿈(지금은 6~11분 보수적). **심야버스 실측 (2026-11-09):** `prep/collect_night_bus.py`로 모은 기록 → `prep/build_night_timetable.py` → `데이터/night_bus_trips_YYYYMMDD_<요일>.csv` → 엔진이 N버스는 실측 운행을 그대로 씀(대기 여유 2분). 같은 요일 유형이 없으면 다른 날 것. 서버 cron 목·토·일 05:00 자동 생성
 14. ~~첫 구간 실시간~~ 버스 1차 완료 (2026-11-08): `engine/realtime.py`, 출발 20분 안이면 첫 버스 실시간 도착·막차·놓침 표시. 지하철 실시간과 뒤 구간 재계산은 아직
 15. ~~주소 입력~~ 완료 (2026-11-08): `GET /api/geocode?q=`(역 목록 + 네이버 Geocoding), `GET /api/reverse`. 네이버 Application에 Geocoding·Reverse Geocoding 추가함. 가게·장소 이름은 네이버 지역 검색(NAVER API HUB, 키 `데이터/naver_search_key.txt`, 하루 25,000회)으로 추가 (2026-11-08)
 16. ~~기능명세서 갱신~~ 완료 (2026-11-08): 구현 현황·정해진 것 섹션 추가
