@@ -20,6 +20,8 @@ import re
 from typing import List, Optional, Union  # noqa: F401
 
 import time
+
+import numpy as np
 from collections import defaultdict, deque
 
 from fastapi import FastAPI, HTTPException, Request
@@ -241,8 +243,14 @@ def leg_json(leg, day):
         out.update({"line": leg["line"],
                     "trip": leg["trip"], "departure": to_iso(day, leg["dep"]), "arrival": to_iso(day, leg["arr"]),
                     "stops": leg["stops"]})
+        out["is_last"] = bool(leg.get("is_last", False))          # 시간표 기준 그 정류장 막차
         if leg["type"] == "bus":
             out["headway_min"] = leg["headway_min"]
+            out["night"] = str(leg["line"]).startswith("N")           # 심야버스
+            out["timetable"] = "observed" if "(실측)" in str(leg["trip"]) else "estimate"
+        else:
+            out["night"] = False
+            out["timetable"] = "official"
         if leg.get("realtime"):
             rt = dict(leg["realtime"])
             if "realtime_dep" in rt:
@@ -253,8 +261,63 @@ def leg_json(leg, day):
     return out
 
 
-def option_json(kind, r, day, t0):
-    return {"kind": kind, "arrival": to_iso(day, r["arrive"]), "duration_min": (r["arrive"] - t0) // 60,
+TIGHT_TRANSFER_SEC = 180      # 갈아탈 여유가 이 이하면 경고 (F1-13)
+
+
+def _mid(rng):
+    return (rng[0] + rng[1]) / 2
+
+
+def option_fare_range(kind, r):
+    """카드 요금 범위: 대중교통 요금(고정) + 택시 구간 범위 합."""
+    if kind == "taxi":
+        return list(r["fare_range"])
+    lo = hi = r.get("transit_fare", r["fare"] if kind == "transit" else 0)
+    for l in r["legs"]:
+        if l["type"] == "taxi":
+            lo, hi = lo + l["fare_range"][0], hi + l["fare_range"][1]
+    return [int(lo), int(hi)]
+
+
+def option_warnings(r, dest):
+    """F1-13 환승 여유 경고(놓치면 그 자리에서 택시 타는 요금), 버스 추정·택시 교통 정보 없음."""
+    out = []
+    ready, prev = None, None
+    for l in r["legs"]:
+        if l["type"] == "walk":
+            if ready is not None:
+                ready += l["sec"]
+            continue
+        if l["type"] in ("rail", "bus") and prev is not None and prev["type"] in ("rail", "bus") and ready is not None:
+            slack = l["dep"] - ready
+            if slack <= TIGHT_TRANSFER_SEC and prev.get("to_ll"):
+                straight = float(np.linalg.norm(raptor.to_xy([prev["to_ll"][0]], [prev["to_ll"][1]])[0]
+                                                - raptor.to_xy([dest[0]], [dest[1]])[0]))
+                t = raptor.fares.taxi_trip(np.array([straight]), np.array([ready]))
+                out.append({"code": "TIGHT_TRANSFER", "at": l["from"], "slack_sec": int(max(slack, 0)),
+                            "message": f"{l['from']}에서 갈아탈 여유가 {max(slack, 0) // 60}분 {max(slack, 0) % 60}초예요",
+                            "fallback_taxi": {"from": prev["to"], "fare": int(t["fare"][0]),
+                                              "fare_range": [int(t["fare_lo"][0]), int(t["fare_hi"][0])]}})
+        ready, prev = l["arr"], l
+    if any(l["type"] == "bus" and "(실측)" not in str(l.get("trip")) for l in r["legs"]):
+        out.append({"code": "BUS_ESTIMATE", "message": "버스 시각 일부는 첫차·막차와 배차 간격으로 추정했어요"})
+    if any(l["type"] == "taxi" and l.get("source", "estimate") == "estimate" for l in r["legs"]):
+        out.append({"code": "NO_TRAFFIC", "message": "택시 구간은 교통 정보 없이 계산했어요"})
+    return out
+
+
+def compare_to_taxi(card, taxi_card):
+    """F2-02·F2-07: 택시 직행 대비 절약액(요금 범위 가운데 값끼리)과 늦어지는 시간."""
+    card["saving_vs_taxi"] = int(round(_mid(taxi_card["fare_range"]) - _mid(card["fare_range"])))
+    late = (dt.datetime.fromisoformat(card["arrival"]) - dt.datetime.fromisoformat(taxi_card["arrival"])).total_seconds()
+    card["delay_vs_taxi_min"] = int(np.ceil(late / 60))
+    return card
+
+
+def option_json(kind, r, day, t0, dest=None):
+    return {"kind": kind, "available": True,
+            "fare_range": option_fare_range(kind, r),
+            "warnings": option_warnings(r, dest) if dest is not None else [], "arrival": to_iso(day, r["arrive"]), "duration_min": (r["arrive"] - t0) // 60,
             "fare": r["fare"], "rides": r.get("legs_count", 0),
             "fare_detail": {"transit": r.get("transit_fare", r["fare"] if kind == "transit" else 0),
                             "taxi": r.get("taxi_fare", 0)},
@@ -413,12 +476,59 @@ def routes(req: RouteRequest):
                           "wait_sec": d["wait_sec"], "drive_sec": d["drive_sec"], "distance_m": d["dist_m"],
                           "fare": d["fare"], "fare_range": list(d["fare_range"]),
                           "source": d.get("source", "estimate"), "estimated": d.get("source", "estimate") == "estimate"}]}]
-    options += [option_json("transit", r, day, t0) for r in p["transit"]]
-    options += [option_json("combo", c, day, t0) for c in p["combo"]]
+    dest = (req.destination.lat, req.destination.lng)
+    options[0].update(option_id="taxi", available=True,
+                      warnings=[] if d.get("source", "estimate") != "estimate"
+                      else [{"code": "NO_TRAFFIC", "message": "택시는 교통 정보 없이 계산했어요"}])
+    for i, r in enumerate(p["transit"], 1):
+        options.append(dict(option_json("transit", r, day, t0, dest), option_id=f"transit-{i}"))
+    for i, c in enumerate(p["combo"], 1):
+        options.append(dict(option_json("combo", c, day, t0, dest), option_id=f"combo-{i}"))
+    last = last_service(day, dtype, (req.origin.lat, req.origin.lng), dest, t0)
+    if not p["transit"]:
+        cut = last["regular_last_departure"]
+        options.append({"kind": "transit", "option_id": "transit-none", "available": False,
+                        "reason": "LAST_TRAIN_GONE",
+                        "message": (f"대중교통 막차가 {cut[11:16]}에 끊겼어요" if cut else "지금은 대중교통으로 갈 수 없어요"),
+                        "legs": []})
+    for o in options[1:]:
+        if o["available"]:
+            compare_to_taxi(o, options[0])
+    options[0].update(saving_vs_taxi=0, delay_vs_taxi_min=0)
     return {"service_day": day.isoformat(), "day_type": dtype, "departure": to_iso(day, t0), "live": live,
-            "options": options,
+            "options": options, "last_service": last, "data_as_of": data_as_of(dtype),
             "notes": ["택시 구간의 source: naver_live(네이버 실시간 경로), naver(네이버 경로 거리 + 심야 속도), estimate(직선거리 추정)",
                       "버스는 막차·첫차만 공식 시각이고 그 사이는 배차 간격 기반 추정입니다"]}
+
+
+_last_cache = {}
+
+
+def last_service(day, dtype, origin, dest, t0):
+    """F2-03 막차 끊김: 지하철·일반버스(심야버스 빼고)로 갈 수 있는 가장 늦은 출발 시각.
+    regular_cut = 지금 출발 시각에는 이미 끊김. 같은 장소·요일 유형은 메모리에 저장해 다시 쓴다."""
+    net = get_net(dtype)
+    key = (dtype, id(net), round(origin[0], 3), round(origin[1], 3), round(dest[0], 3), round(dest[1], 3))
+    if key not in _last_cache:
+        if len(_last_cache) > 2000:
+            _last_cache.clear()
+        t, _ = deadline_mod.latest_departure(net, origin, dest, 20 * 3600, skip=deadline_mod.night_routes(net))
+        _last_cache[key] = t
+    t = _last_cache[key]
+    if t is None or t >= deadline_mod.SEARCH_END:
+        return {"regular_last_departure": None, "regular_cut": False, "all_night": t is not None}
+    return {"regular_last_departure": to_iso(day, t), "regular_cut": t < t0, "all_night": False}
+
+
+def data_as_of(dtype):
+    """데이터 기준일: 버스 공식 첫차·막차를 받은 날, 심야버스 실측 밤."""
+    def date_of(name):
+        m = re.search(r"_(\d{8})_", name or "")
+        return f"{m.group(1)[:4]}-{m.group(1)[4:6]}-{m.group(1)[6:]}" if m else None
+    net = get_net(dtype)
+    nights = sorted({date_of(os.path.basename(f)) for f in network.night_files(dtype)} - {None})
+    return {"bus_official": date_of(net.bus_official), "night_bus": nights[-1] if nights else None,
+            "night_bus_day_type_match": any(f.endswith(f"_{dtype}.csv") for f in network.night_files(dtype))}
 
 
 def deadline_json(d, day):

@@ -130,3 +130,32 @@ def test_routes_330am_finds_night_bus(client):
     assert r["service_day"] == "2026-11-16"
     routes = {l.get("line") for o in r["options"] for l in o["legs"]}
     assert any(str(x).startswith("N") for x in routes if x)
+
+
+@needs_data
+def test_routes_cards_have_result_screen_fields(client):
+    r = client.post("/api/routes", json={"origin": {"lat": 37.5572, "lng": 126.9245},
+                                         "destination": {"lat": 37.6551, "lng": 127.0614},
+                                         "departure_time": "2026-11-17T00:40"}).json()
+    ids = [o["option_id"] for o in r["options"]]
+    assert ids[0] == "taxi" and len(set(ids)) == len(ids)
+    for o in r["options"]:
+        if not o["available"]:
+            continue
+        lo, hi = o["fare_range"]
+        assert lo <= hi and isinstance(o["saving_vs_taxi"], int) and isinstance(o["delay_vs_taxi_min"], int)
+        for w in o["warnings"]:
+            assert w["code"] in ("TIGHT_TRANSFER", "BUS_ESTIMATE", "NO_TRAFFIC") and w["message"]
+    assert r["last_service"]["regular_cut"] is True            # 00:40이면 홍대→노원 일반 막차는 끊김
+    assert r["data_as_of"]["bus_official"]
+
+
+def test_tight_transfer_warning_has_fallback_taxi():
+    legs = [{"type": "walk", "from": "출발지", "to": "A", "sec": 60},
+            {"type": "rail", "from": "A", "to": "B", "dep": 1000, "arr": 2000, "line": "2호선", "trip": "x",
+             "to_ll": (37.5, 127.0)},
+            {"type": "walk", "from": "B", "to": "C", "sec": 60},
+            {"type": "bus", "from": "C", "to": "D", "dep": 2100, "arr": 2600, "line": "N13", "trip": "y (실측)"}]
+    w = app_mod.option_warnings({"legs": legs}, (37.6, 127.05))
+    assert [x["code"] for x in w] == ["TIGHT_TRANSFER"]
+    assert w[0]["slack_sec"] == 40 and w[0]["fallback_taxi"]["fare"] > 0

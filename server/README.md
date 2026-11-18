@@ -71,6 +71,14 @@ S1 화면의 출발 시각 값(`"now"`, `"23:40"`)을 그대로 보내면 된다
 
 응답 `options`: `kind`가 `taxi`(택시 직행) / `transit`(대중교통만, 탈것 수별로 여러 개일 수 있음) / `combo`(조합, `recommended: true`가 추천, `combo_kind`는 `taxi_last` 마지막 택시 / `taxi_first` 처음 택시 / `taxi_both` 양쪽). 각 항목에 `arrival`, `duration_min`, `fare`, `fare_detail{transit, taxi}`, `legs`.
 
+결과 화면(S2·S3)용 값:
+- 카드마다 `option_id`(`taxi`, `transit-1`, `combo-1` …, S3 주소 `/result/:optionId`에 쓴다), `available`, `fare_range[최소, 최대]`(대중교통 요금 + 택시 구간 범위), `saving_vs_taxi`(택시 직행 대비 절약액, 요금 범위 가운데 값끼리), `delay_vs_taxi_min`(택시 직행보다 늦어지는 분, 빠르면 음수)
+- `warnings[]`: `code`가 `TIGHT_TRANSFER`(갈아탈 여유 3분 이하, `at` 역·정류장, `slack_sec`, `fallback_taxi{from, fare, fare_range}` 놓치면 그 자리에서 택시), `BUS_ESTIMATE`(버스 시각 일부 추정), `NO_TRAFFIC`(택시를 교통 정보 없이 계산). 모두 `message`(화면에 그대로 써도 되는 문장)가 있다
+- 버스·지하철 구간: `night`(심야버스), `is_last`(시간표 기준 그 정류장 막차), `timetable`(`official` 지하철 시간표 / `observed` 심야버스 실측 / `estimate` 배차 간격 추정)
+- 대중교통만으로 갈 수 없으면 `{"kind": "transit", "option_id": "transit-none", "available": false, "reason": "LAST_TRAIN_GONE", "message": "대중교통 막차가 00:29에 끊겼어요"}` 카드가 붙는다 → 흐리게 표시
+- 응답 `last_service`: `regular_last_departure`(지하철·일반버스 막차 출발 시각, 심야버스 제외), `regular_cut`(지금 출발 시각에 이미 끊김 → "막차 끊김" 표시), `all_night`(04시까지 계속 감)
+- 응답 `data_as_of`: `bus_official`(버스 첫차·막차를 받은 날), `night_bus`(심야버스 실측 밤), `night_bus_day_type_match`(같은 요일 유형 기록인지)
+
 ### `POST /api/deadline`
 
 ```json
