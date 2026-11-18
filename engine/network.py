@@ -25,12 +25,13 @@ ENGINE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(ENGINE)
 PREP_OUT = os.path.join(ROOT, "prep", "out")
 CACHE = os.path.join(ENGINE, "cache")
-CACHE_VERSION = 16
+CACHE_VERSION = 17
 DATA = os.path.join(ROOT, "데이터")
 OFFICIAL_BLEND_SEC = 7200     # 공식 막차·첫차에서 이 시간 안의 버스는 공식 시각 쪽으로 보정한다
 OUTLIER_SEC = 1800            # 공식 정류장 시각이 추정 기점 시각에서 이만큼 벗어나면 버린다
 SHORT_TURN_SLACK = 180        # 공식 막차보다 이만큼 늦게 지나는 운행은 없는 것으로 본다
 NIGHT_MIN_STOPS = 5           # 실측 운행은 정류장 통과가 이만큼은 있어야 쓴다
+NIGHT_LAYOVER_SEC = 600    # 실측 운행에서 예상보다 이만큼 넘게 서 있으면 회차 대기 → 거기서 운행을 나눈다
 NIGHT_BOARD_SLACK = 240       # 실측도 밤마다 다르다: 일·수 비교 |차| 중앙 2분, 90% 7분 (2026-11-12) → 4분 일찍 와 있어야 탄다
 INF32 = 2 ** 31 - 1
 EXCLUDED_BUS_TYPES = {"공항", "관광"}
@@ -220,8 +221,19 @@ def observed_times(obs, seqs, sids, simulate):
         d = float(np.median(v[ok] - (probe[ok] - probe[0])))
         sim = simulate([int(d)])[0]
         t = sim + np.rint(fill_along(v - sim)).astype(np.int64)
-        rows.append(np.maximum.accumulate(t))
-        spans.append((ok[0], ok[-1]))
+        t = np.maximum.accumulate(t)
+        # 회차 대기: 관측한 이웃 정류장 사이가 운행시간 예상보다 NIGHT_LAYOVER_SEC 넘게 길면 거기서 나눈다
+        # (짧은 구간을 버스 안에서 20분씩 기다리는 안내를 막는다. 계속 타고 가는 사람은 같은 버스로 다시 탄다)
+        extra = np.diff(v[ok]) - np.diff(sim[ok])
+        cuts = [j for j in np.flatnonzero(extra > NIGHT_LAYOVER_SEC)]
+        lo = ok[0]
+        for j in cuts + [len(ok) - 1]:
+            hi = ok[j]
+            if np.searchsorted(ok, hi) - np.searchsorted(ok, lo) + 1 >= 2:
+                rows.append(t)
+                spans.append((lo, hi))
+            if j < len(ok) - 1:
+                lo = ok[j + 1]
     if not rows:
         return None
     order = np.argsort([t[0] for t in rows], kind="stable")

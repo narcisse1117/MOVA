@@ -12,6 +12,7 @@ API 서버 (FastAPI). 경로 엔진(engine/)을 HTTP로 연다.
 import datetime as dt
 import json
 import os
+import hashlib
 import secrets
 import sqlite3
 import sys
@@ -24,7 +25,7 @@ import time
 import numpy as np
 from collections import defaultdict, deque
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
@@ -46,8 +47,8 @@ DB_PATH = os.path.join(ROOT, "server", "data", "mova.db")
 
 app = FastAPI(title=APP_CFG["service_name"] + " API", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=APP_CFG.get("cors_origins", []),
-                   allow_origin_regex=APP_CFG.get("cors_origin_regex"), allow_methods=["GET", "POST"],
-                   allow_headers=["Content-Type"])
+                   allow_origin_regex=APP_CFG.get("cors_origin_regex"), allow_methods=["GET", "POST", "PATCH", "DELETE"],
+                   allow_headers=["Content-Type", "Authorization"])
 
 # ---------- 요청 제한 (IP별, 메모리) ----------
 # 무거운 요청(경로·마감·모임 조회)은 엔진과 네이버 호출을 쓰므로 더 세게 막는다
@@ -219,14 +220,40 @@ class DeadlineRequest(BaseModel):
 
 
 class GroupCreate(BaseModel):
-    name: str = Field(..., max_length=40)
+    name: str = Field("", max_length=40, description="모임 이름 (선택)")
     meeting_place: Point
-    date: dt.date = Field(..., description="모임 날짜 (운행일). 예: 2026-12-18")
+    departure_time: Optional[Union[dt.datetime, str]] = Field(
+        None, description='출발 예정 시각: "now"(또는 생략) / "23:40" / 2026-12-18T23:40. 이 시각부터 마감을 찾는다')
+    date: Optional[dt.date] = Field(None, description="(예전 방식) 모임 날짜만 주면 그날 21:00부터 찾는다")
 
 
 class MemberCreate(BaseModel):
-    nickname: str = Field(..., max_length=20)
+    nickname: str = Field(..., min_length=1, max_length=20)
     home: Point
+
+
+class MemberUpdate(BaseModel):
+    nickname: Optional[str] = Field(None, min_length=1, max_length=20)
+    home: Optional[Point] = None
+
+
+class Feedback(BaseModel):
+    """F2-09·F2-10: 도착 후 실제 택시비. 주소 없이 보관한다."""
+    search_id: Optional[str] = Field(None, max_length=64)
+    option_id: Optional[str] = Field(None, max_length=32)
+    option_kind: Optional[str] = Field(None, max_length=16, description="taxi / transit / combo")
+    fare_range: Optional[List[int]] = Field(None, min_length=2, max_length=2, description="그 안의 예상 요금 범위")
+    actual_fare: Optional[int] = Field(None, ge=0, le=500000, description="실제 택시비 (건너뛰면 비움)")
+    skipped: bool = False
+    distance_m: Optional[int] = Field(None, ge=0, description="택시 구간 거리 (거리대 보정용)")
+    departure: Optional[str] = Field(None, max_length=40, description="출발 시각 (시간대 보정용)")
+
+
+class Event(BaseModel):
+    device_id: str = Field(..., min_length=4, max_length=64, description="익명 기기 ID (브라우저에서 만든 임의 값)")
+    name: str = Field(..., min_length=1, max_length=40, description="이벤트 이름 (예: search, select_option, share)")
+    area: Optional[str] = Field(None, max_length=40, description="동 이름까지만 (주소 금지)")
+    option_kind: Optional[str] = Field(None, max_length=16)
 
 
 def leg_json(leg, day):
@@ -304,6 +331,26 @@ def option_warnings(r, dest):
     if any(l["type"] == "taxi" and l.get("source", "estimate") == "estimate" for l in r["legs"]):
         out.append({"code": "NO_TRAFFIC", "message": "택시 구간은 교통 정보 없이 계산했어요"})
     return out
+
+
+def pick_recommended(options):
+    """F1-11: 택시 직행보다 recommend_max_delay_min분 넘게 늦지 않는 안 중 가장 많이 아끼는 안, 없으면 가장 싼 안.
+    조합(F1-10)은 최대 2안: 추천이 조합이면 그것 + 다른 하나, 아니면 앞의 둘."""
+    limit = raptor.fares.CFG["choice"].get("recommend_max_delay_min", 15)
+    cards = [o for o in options if o["kind"] != "taxi" and o["available"]]
+    for o in options:
+        o["recommended"] = False
+    if not cards:
+        return
+    near = [o for o in cards if o["delay_vs_taxi_min"] <= limit]
+    best = (max(near, key=lambda o: (o["saving_vs_taxi"], -o["delay_vs_taxi_min"])) if near
+            else min(cards, key=lambda o: (_mid(o["fare_range"]), o["delay_vs_taxi_min"])))
+    best["recommended"] = True
+    combos = [o for o in options if o["kind"] == "combo"]
+    keep = ([best] if best["kind"] == "combo" else []) + [o for o in combos if o is not best]
+    for o in combos[:]:
+        if o not in keep[:2]:
+            options.remove(o)
 
 
 def compare_to_taxi(card, taxi_card):
@@ -495,6 +542,7 @@ def routes(req: RouteRequest):
         if o["available"]:
             compare_to_taxi(o, options[0])
     options[0].update(saving_vs_taxi=0, delay_vs_taxi_min=0)
+    pick_recommended(options)
     return {"service_day": day.isoformat(), "day_type": dtype, "departure": to_iso(day, t0), "live": live,
             "options": options, "last_service": last, "data_as_of": data_as_of(dtype),
             "notes": ["택시 구간의 source: naver_live(네이버 실시간 경로), naver(네이버 경로 거리 + 심야 속도), estimate(직선거리 추정)",
@@ -591,6 +639,9 @@ def settle(req: SettleRequest):
 
 # ---------- 모임 (F3) ----------
 
+GROUP_TTL = dt.timedelta(hours=24)       # F3-08: 만든 뒤 24시간이 지나면 주소와 함께 지운다
+
+
 def db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     con = sqlite3.connect(DB_PATH)
@@ -601,9 +652,18 @@ def db():
     con.execute("""create table if not exists members (
         id text primary key, group_id text, nickname text, home_lat real, home_lng real,
         home_label text, created_at text)""")
-    cols = {r[1] for r in con.execute("pragma table_info(members)")}
-    if "toss_id" not in cols:
-        con.execute("alter table members add column toss_id text")
+    for table, col, kind in (("members", "toss_id", "text"), ("members", "token_hash", "text"),
+                             ("members", "area", "text"), ("groups", "admin_hash", "text"),
+                             ("groups", "version", "integer default 1"), ("groups", "expires_at", "text"),
+                             ("groups", "departure", "text"), ("groups", "status", "text default 'active'")):
+        if col not in {r[1] for r in con.execute(f"pragma table_info({table})")}:
+            con.execute(f"alter table {table} add column {col} {kind}")
+    con.execute("""create table if not exists feedback (
+        id integer primary key autoincrement, created_at text, search_id text, option_id text, option_kind text,
+        fare_lo integer, fare_hi integer, actual_fare integer, skipped integer, distance_band text, hour integer)""")
+    con.execute("""create table if not exists events (
+        id integer primary key autoincrement, created_at text, device_id text, name text, area text,
+        option_kind text)""")
     return con
 
 
@@ -611,26 +671,197 @@ def now_iso():
     return dt.datetime.now(KST).isoformat(timespec="seconds")
 
 
+def _hash(token):
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _bearer(authorization):
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization[7:].strip()
+    return None
+
+
+def purge_expired(con):
+    """24시간 지난 모임: 참여자(집 주소)를 지우고 모임은 expired로 남긴다 (링크를 열면 '끝난 모임' 안내).
+    7일 지난 모임 기록은 아예 지운다."""
+    now = dt.datetime.now(KST)
+    for g in con.execute("select id, created_at, expires_at, status from groups").fetchall():
+        exp = dt.datetime.fromisoformat(g["expires_at"]) if g["expires_at"] else \
+            dt.datetime.fromisoformat(g["created_at"]) + GROUP_TTL
+        if now >= exp + dt.timedelta(days=7):
+            con.execute("delete from members where group_id=?", (g["id"],))
+            con.execute("delete from groups where id=?", (g["id"],))
+        elif now >= exp and g["status"] != "expired":
+            con.execute("delete from members where group_id=?", (g["id"],))
+            con.execute("update groups set status='expired', meet_lat=null, meet_lng=null where id=?", (g["id"],))
+
+
+def load_group(con, gid, allow_expired=False):
+    purge_expired(con)
+    g = con.execute("select * from groups where id=?", (gid,)).fetchone()
+    if not g:
+        raise HTTPException(404, "모임이 없어요")
+    if g["status"] in ("expired", "ended") and not allow_expired:
+        raise HTTPException(410, "끝난 모임이에요")
+    return g
+
+
+def is_admin(g, token):
+    return bool(token) and g["admin_hash"] is not None and secrets.compare_digest(g["admin_hash"], _hash(token))
+
+
+def area_of(lat, lng):
+    """F3-10: 다른 사람에게 보여줄 위치 = 동 이름 + 가까운 역 이름 (주소·좌표는 안 보낸다)."""
+    st = stations()
+    d = (st.lat - lat) ** 2 + ((st.lng - lng) * 0.79) ** 2
+    near = st.loc[d.idxmin(), "name"] if len(st) else None
+    station = (near if str(near).endswith("역") else f"{near}역") if near else None
+    r = naver.reverse(lat, lng)
+    dong = f"{r['gu']} {r['dong']}" if r and r.get("dong") else None
+    return " · ".join(x for x in (dong, f"{station} 근처" if station else None) if x) or "위치 비공개"
+
+
+def unique_nickname(con, gid, nickname, exclude_id=None):
+    """F3-04: 모임 안에서 겹치면 뒤에 번호 (민수, 민수2, 민수3 …)."""
+    taken = {r["nickname"] for r in con.execute("select id, nickname from members where group_id=?", (gid,))
+             if r["id"] != exclude_id}
+    name, n = nickname.strip(), 2
+    out = name
+    while out in taken:
+        out, n = f"{name}{n}", n + 1
+    return out
+
+
+def bump(con, gid):
+    con.execute("update groups set version = coalesce(version, 1) + 1 where id=?", (gid,))
+
+
 @app.post("/api/groups")
 def create_group(req: GroupCreate):
-    gid = secrets.token_urlsafe(6)
+    """F3-01·02·03: 모임 만들기 → 임의 ID(16자) + 관리 토큰(만든 사람 브라우저에만 저장)."""
+    if req.departure_time is None and req.date is not None:
+        h, m = map(int, APP_CFG["group_deadline_from"].split(":"))
+        start = dt.datetime.combine(req.date, dt.time(h, m), tzinfo=KST)
+    else:
+        start = resolve_time(req.departure_time)
+    day, _, _ = service_day(start)
+    gid = secrets.token_urlsafe(12)              # 16자
+    admin = secrets.token_urlsafe(24)
+    created = dt.datetime.now(KST)
+    expires = created + GROUP_TTL
     with db() as con:
-        con.execute("insert into groups values (?,?,?,?,?,?,?)",
+        con.execute("insert into groups (id, name, meet_lat, meet_lng, meet_label, date, created_at, admin_hash, "
+                    "version, expires_at, departure, status) values (?,?,?,?,?,?,?,?,?,?,?,?)",
                     (gid, req.name, req.meeting_place.lat, req.meeting_place.lng, req.meeting_place.label,
-                     req.date.isoformat(), now_iso()))
-    return {"id": gid, "share_path": f"/g/{gid}"}
+                     day.isoformat(), created.isoformat(timespec="seconds"), _hash(admin), 1,
+                     expires.isoformat(timespec="seconds"), start.isoformat(timespec="seconds"), "active"))
+    return {"id": gid, "share_path": f"/g/{gid}", "admin_token": admin,
+            "departure": start.isoformat(timespec="seconds"), "expires_at": expires.isoformat(timespec="seconds"),
+            "notes": ["admin_token은 만든 사람 브라우저에만 저장하고 Authorization: Bearer 헤더로 보낸다 (다시 받을 수 없음)"]}
+
+
+@app.delete("/api/groups/{gid}")
+def end_group(gid: str, authorization: Optional[str] = Header(None)):
+    """F3-08: 만든 사람이 모임 종료 → 참여자 주소를 바로 지운다."""
+    with db() as con:
+        g = load_group(con, gid)
+        if not is_admin(g, _bearer(authorization)):
+            raise HTTPException(403, "만든 사람만 모임을 끝낼 수 있어요")
+        con.execute("delete from members where group_id=?", (gid,))
+        con.execute("update groups set status='ended', meet_lat=null, meet_lng=null where id=?", (gid,))
+        bump(con, gid)
+    _drop_cache(gid)
+    return {"id": gid, "status": "ended"}
 
 
 @app.post("/api/groups/{gid}/members")
-def add_member(gid: str, req: MemberCreate):
-    mid = secrets.token_urlsafe(6)
+def add_member(gid: str, req: MemberCreate, authorization: Optional[str] = Header(None)):
+    """F3-04·06: 참여 → 참여자 토큰. 만든 사람이 대신 넣을 때도 같은 주소 (관리 토큰을 보내면 by_admin)."""
+    area = area_of(req.home.lat, req.home.lng)
+    mid = secrets.token_urlsafe(12)
+    token = secrets.token_urlsafe(24)
     with db() as con:
-        if not con.execute("select 1 from groups where id=?", (gid,)).fetchone():
-            raise HTTPException(404, "모임이 없습니다")
-        con.execute("insert into members (id, group_id, nickname, home_lat, home_lng, home_label, created_at) "
-                    "values (?,?,?,?,?,?,?)",
-                    (mid, gid, req.nickname, req.home.lat, req.home.lng, req.home.label, now_iso()))
-    return {"id": mid}
+        g = load_group(con, gid)
+        by_admin = is_admin(g, _bearer(authorization))
+        nick = unique_nickname(con, gid, req.nickname)
+        con.execute("insert into members (id, group_id, nickname, home_lat, home_lng, home_label, created_at, "
+                    "token_hash, area) values (?,?,?,?,?,?,?,?,?)",
+                    (mid, gid, nick, req.home.lat, req.home.lng, req.home.label, now_iso(), _hash(token), area))
+        bump(con, gid)
+    return {"id": mid, "nickname": nick, "member_token": token, "area": area, "by_admin": by_admin}
+
+
+def _member_auth(con, gid, mid, authorization):
+    g = load_group(con, gid)
+    m = con.execute("select * from members where id=? and group_id=?", (mid, gid)).fetchone()
+    if not m:
+        raise HTTPException(404, "참여자가 없어요")
+    tok = _bearer(authorization)
+    own = bool(tok) and m["token_hash"] is not None and secrets.compare_digest(m["token_hash"], _hash(tok))
+    if not (own or is_admin(g, tok)):
+        raise HTTPException(403, "본인이나 만든 사람만 바꿀 수 있어요")
+    return g, m
+
+
+@app.patch("/api/groups/{gid}/members/{mid}")
+def update_member(gid: str, mid: str, req: MemberUpdate, authorization: Optional[str] = Header(None)):
+    """F3-05·06: 닉네임·집 주소 고치기 (참여자 토큰 또는 관리 토큰)."""
+    with db() as con:
+        _, m = _member_auth(con, gid, mid, authorization)
+        nick = unique_nickname(con, gid, req.nickname, exclude_id=mid) if req.nickname else m["nickname"]
+        lat, lng, label, area = m["home_lat"], m["home_lng"], m["home_label"], m["area"]
+        if req.home is not None:
+            lat, lng, label, area = req.home.lat, req.home.lng, req.home.label, area_of(req.home.lat, req.home.lng)
+        con.execute("update members set nickname=?, home_lat=?, home_lng=?, home_label=?, area=? where id=?",
+                    (nick, lat, lng, label, area, mid))
+        bump(con, gid)
+    _drop_cache(gid)
+    return {"id": mid, "nickname": nick, "area": area}
+
+
+@app.delete("/api/groups/{gid}/members/{mid}")
+def remove_member(gid: str, mid: str, authorization: Optional[str] = Header(None)):
+    """F3-05·03: 빠지기 (본인) / 참여자 삭제 (만든 사람). 주소도 바로 지운다."""
+    with db() as con:
+        _member_auth(con, gid, mid, authorization)
+        con.execute("delete from members where id=?", (mid,))
+        bump(con, gid)
+    _drop_cache(gid)
+    return {"id": mid, "deleted": True}
+
+
+@app.post("/api/feedback")
+def feedback(req: Feedback):
+    """F2-09·10: 실제 택시비 (주소 없이 거리대·시간대만 남긴다)."""
+    band = None
+    if req.distance_m is not None:
+        km = req.distance_m / 1000
+        band = "~5km" if km < 5 else "5~10km" if km < 10 else "10~20km" if km < 20 else "20km~"
+    hour = None
+    if req.departure:
+        try:
+            hour = resolve_time(req.departure).hour
+        except ValueError:
+            hour = None
+    lo, hi = (req.fare_range or [None, None])
+    with db() as con:
+        cur = con.execute("insert into feedback (created_at, search_id, option_id, option_kind, fare_lo, fare_hi, "
+                          "actual_fare, skipped, distance_band, hour) values (?,?,?,?,?,?,?,?,?,?)",
+                          (now_iso(), req.search_id, req.option_id, req.option_kind, lo, hi, req.actual_fare,
+                           int(req.skipped or req.actual_fare is None), band, hour))
+    out = {"id": cur.lastrowid, "saved": True}
+    if req.actual_fare is not None and lo is not None:
+        out["within_range"] = lo <= req.actual_fare <= hi
+    return out
+
+
+@app.post("/api/events")
+def events(req: Event):
+    """사용 기록 (익명 기기 ID, 이벤트 이름, 동 이름까지만)."""
+    with db() as con:
+        con.execute("insert into events (created_at, device_id, name, area, option_kind) values (?,?,?,?,?)",
+                    (now_iso(), req.device_id, req.name, req.area, req.option_kind))
+    return {"saved": True}
 
 
 _deadline_cache = {}
@@ -668,38 +899,81 @@ def taxi_groups_json(g, members, deadlines, leave_at):
     return out, transfers
 
 
+def _drop_cache(gid):
+    for k in [k for k in _deadline_cache if k[0] == gid]:
+        del _deadline_cache[k]
+
+
+def extra_if_late(dl, day, meet, home, dtype):
+    """F3-12: 마감을 넘기면 더 드는 돈 = 마감 1분 뒤 택시 직행 추정 요금 − 마감 안 대중교통 요금.
+    심야버스로 계속 갈 수 있으면 그 요금 차이를 함께 준다."""
+    reg = dl.get("regular")
+    if reg is None:
+        return None
+    t_late = int((dt.datetime.fromisoformat(reg["latest"]) - dt.datetime.combine(day, dt.time(0), tzinfo=KST))
+                 .total_seconds()) + 60
+    a, b = raptor.to_xy([meet[0]], [meet[1]])[0], raptor.to_xy([home[0]], [home[1]])[0]
+    taxi = int(raptor.fares.taxi_trip(np.array([float(np.linalg.norm(a - b))]), np.array([t_late]))["fare"][0])
+    fare = reg["route"]["fare"]
+    out = {"taxi_fare": taxi, "amount": max(taxi - fare, 0),
+           "message": f"이 시각을 넘기면 {max(taxi - fare, 0):,}원 더 들어요 (택시 직행 추정)"}
+    nb = dl.get("night")
+    if nb is not None and nb["latest"] > reg["latest"]:
+        out["night_bus_fare"] = nb["route"]["fare"]
+        out["night_bus_until"] = nb["latest"]
+    return out
+
+
 @app.get("/api/groups/{gid}")
-def get_group(gid: str, leave_at: Optional[dt.datetime] = None):
+def get_group(gid: str, leave_at: Optional[dt.datetime] = None, authorization: Optional[str] = Header(None)):
     """모임 정보 + 사람별 출발 마감 (모임 장소 → 각자 집).
+    다른 사람의 집은 area(동 이름 · 가까운 역)만 보낸다. 본인(참여자 토큰)에게만 home(좌표·주소)을 준다.
+    version: 참여자가 바뀔 때마다 올라간다 → 폴링에서 같으면 다시 그리지 않아도 된다.
     leave_at(모임이 끝나는 시각)을 주면, 그때 지하철·일반버스 막차가 끊긴 사람끼리 택시를 묶고 정산한다."""
+    tok = _bearer(authorization)
     with db() as con:
-        g = con.execute("select * from groups where id=?", (gid,)).fetchone()
-        if not g:
-            raise HTTPException(404, "모임이 없습니다")
+        g = load_group(con, gid, allow_expired=True)
+        if g["status"] in ("expired", "ended"):
+            return {"id": g["id"], "name": g["name"], "status": "expired", "version": g["version"] or 1,
+                    "members": [], "notes": ["끝난 모임이에요. 주소는 지웠어요"]}
         members = con.execute("select * from members where group_id=? order by created_at", (gid,)).fetchall()
-    h, m = map(int, APP_CFG["group_deadline_from"].split(":"))
-    start = dt.datetime.combine(dt.date.fromisoformat(g["date"]), dt.time(h, m), tzinfo=KST)
+    if g["departure"]:
+        start = dt.datetime.fromisoformat(g["departure"])
+    else:
+        h, m = map(int, APP_CFG["group_deadline_from"].split(":"))
+        start = dt.datetime.combine(dt.date.fromisoformat(g["date"]), dt.time(h, m), tzinfo=KST)
     day, t0, dtype = service_day(start)
     net = get_net(dtype)
+    meet = (g["meet_lat"], g["meet_lng"])
     out, dls = [], {}
     for mb in members:
-        key = (g["id"], mb["id"], dtype, id(net))
+        home = (mb["home_lat"], mb["home_lng"])
+        key = (g["id"], mb["id"], dtype, id(net), home, t0)
         if key not in _deadline_cache:
-            d = deadline_mod.deadlines(net, (g["meet_lat"], g["meet_lng"]), (mb["home_lat"], mb["home_lng"]), t0)
-            _deadline_cache[key] = deadline_json(d, day)
+            d = deadline_mod.deadlines(net, meet, home, t0)
+            dj = deadline_json(d, day)
+            if dj.get("regular"):
+                dj["regular"]["extra_if_late"] = extra_if_late(dj, day, meet, home, dtype)
+            _deadline_cache[key] = dj
         dls[mb["id"]] = _deadline_cache[key]
-        out.append({"id": mb["id"], "nickname": mb["nickname"],
-                    "home": {"lat": mb["home_lat"], "lng": mb["home_lng"], "label": mb["home_label"]},
-                    "deadline": _deadline_cache[key]})
+        is_me = bool(tok) and mb["token_hash"] is not None and secrets.compare_digest(mb["token_hash"], _hash(tok))
+        item = {"id": mb["id"], "nickname": mb["nickname"], "area": mb["area"] or area_of(*home), "is_me": is_me,
+                "deadline": _deadline_cache[key]}
+        if is_me:
+            item["home"] = {"lat": mb["home_lat"], "lng": mb["home_lng"], "label": mb["home_label"]}
+        out.append(item)
     out.sort(key=lambda x: (x["deadline"]["regular"] or {}).get("leave_by") or "9999")
     taxi_groups = transfers = None
     if leave_at is not None:
         taxi_groups, transfers = taxi_groups_json(g, members, dls, leave_at)
-    return {"id": g["id"], "name": g["name"], "date": g["date"], "day_type": dtype,
+    return {"id": g["id"], "name": g["name"], "status": "ready", "version": g["version"] or 1,
+            "is_admin": is_admin(g, tok), "date": g["date"], "day_type": dtype,
+            "departure": start.isoformat(timespec="seconds"), "expires_at": g["expires_at"],
             "meeting_place": {"lat": g["meet_lat"], "lng": g["meet_lng"], "label": g["meet_label"]},
             "members": out, "leave_at": leave_at.isoformat() if leave_at else None,
             "taxi_groups": taxi_groups, "settlement": transfers,
             "notes": ["leave_at을 주면 그때 막차(지하철·일반버스)가 끊긴 사람끼리 택시를 묶습니다",
                       "택시 요금과 settlement는 예상값입니다. 내린 뒤 실제 금액은 POST /api/settle로 다시 나눕니다 (송금은 각자)",
                       "택시 요금은 네이버 실제 경로(경유지 포함) 기준이고(키가 없거나 한도를 넘으면 추정), 정산은 내리는 곳 기준입니다",
-                      "solo_fare(혼자 탔을 때)는 추정값이라 saving은 참고용입니다"]}
+                      "solo_fare(혼자 탔을 때)는 추정값이라 saving은 참고용입니다",
+                      "다른 사람의 집은 area(동 · 가까운 역)만 보입니다. home은 본인 토큰으로 요청할 때만 옵니다"]}

@@ -69,7 +69,7 @@ S1 화면의 출발 시각 값(`"now"`, `"23:40"`)을 그대로 보내면 된다
 
 출발이 지금부터 20분 안이면 `live: true`이고, 첫 탈것(버스·지하철) 구간에 `realtime`이 붙는다 (지하철은 `matched`: `train` 같은 열차 / `direction` 같은 행선지): `status`(`ok`/`later`/`earlier`/`missed`/`ended`/`unknown`), `arrive_in_sec`, `realtime_dep`, `delay_sec`(엔진 예정 대비), `is_last`(막차), `message`, `plate`. 예시: `server/examples/routes_live_now.json`.
 
-응답 `options`: `kind`가 `taxi`(택시 직행) / `transit`(대중교통만, 탈것 수별로 여러 개일 수 있음) / `combo`(조합, `recommended: true`가 추천, `combo_kind`는 `taxi_last` 마지막 택시 / `taxi_first` 처음 택시 / `taxi_both` 양쪽). 각 항목에 `arrival`, `duration_min`, `fare`, `fare_detail{transit, taxi}`, `legs`.
+응답 `options`: 추천(`recommended: true`)은 택시 직행보다 15분(`config/fares.json` `choice.recommend_max_delay_min`) 넘게 늦지 않는 안 중 가장 많이 아끼는 안, 없으면 가장 싼 안(대중교통만일 수 있음). 조합은 최대 2안. `kind`가 `taxi`(택시 직행) / `transit`(대중교통만, 탈것 수별로 여러 개일 수 있음) / `combo`(조합, `recommended: true`가 추천, `combo_kind`는 `taxi_last` 마지막 택시 / `taxi_first` 처음 택시 / `taxi_both` 양쪽). 각 항목에 `arrival`, `duration_min`, `fare`, `fare_detail{transit, taxi}`, `legs`.
 
 결과 화면(S2·S3)용 값:
 - 카드마다 `option_id`(`taxi`, `transit-1`, `combo-1` …, S3 주소 `/result/:optionId`에 쓴다), `available`, `fare_range[최소, 최대]`(대중교통 요금 + 택시 구간 범위), `saving_vs_taxi`(택시 직행 대비 절약액, 요금 범위 가운데 값끼리), `delay_vs_taxi_min`(택시 직행보다 늦어지는 분, 빠르면 음수)
@@ -89,14 +89,31 @@ S1 화면의 출발 시각 값(`"now"`, `"23:40"`)을 그대로 보내면 된다
 
 ### 모임
 
-1. `POST /api/groups` `{"name": "송년회", "meeting_place": {...}, "date": "2026-12-18"}` → `{"id": "...", "share_path": "/g/..."}`
-2. 링크를 받은 사람마다 `POST /api/groups/{id}/members` `{"nickname": "민수", "home": {...}}`
-3. `GET /api/groups/{id}` → `members[].deadline` (위 deadline과 같은 모양). 마감 계산은 모임 날짜 21:00 이후 기준
+1. `POST /api/groups` `{"name": "송년회", "meeting_place": {...}, "departure_time": "23:00"}` (이름은 선택, 시각은 `"now"`·`"23:40"`·ISO, 생략하면 지금) → `{"id": 16자, "share_path": "/g/...", "admin_token", "departure", "expires_at"}`. **`admin_token`은 만든 사람 브라우저에만 저장** (다시 받을 수 없음)
+2. 링크를 받은 사람마다 `POST /api/groups/{id}/members` `{"nickname": "민수", "home": {...}}` → `{"id", "nickname", "member_token", "area"}`. 닉네임이 겹치면 `민수2`처럼 번호를 붙여 돌려준다. **`member_token`은 그 사람 브라우저에 모임별로 저장**. 만든 사람이 대신 넣을 때는 관리 토큰을 함께 보낸다(`by_admin: true`)
+3. `GET /api/groups/{id}` → `status`(`ready` / `expired`), `version`(참여자가 바뀔 때마다 +1, 폴링에서 같으면 다시 그리지 않아도 됨), `is_admin`, `members[]`
+   - 각 사람: `nickname`, `area`(동 이름 · 가까운 역, 예: `노원구 상계동 · 노원역 근처`), `is_me`, `deadline`(위 deadline과 같은 모양). **다른 사람의 집 주소·좌표는 안 온다.** 본인 토큰으로 요청할 때만 자기 `home`이 온다
+   - `deadline.regular.extra_if_late`: `{"amount", "taxi_fare", "message": "이 시각을 넘기면 25,300원 더 들어요 (택시 직행 추정)"}`, 심야버스로 더 갈 수 있으면 `night_bus_fare`, `night_bus_until`
+   - 마감 계산은 모임 출발 예정 시각부터
 4. `GET /api/groups/{id}?leave_at=2026-12-19T01:00` → 위에 더해
    - `taxi_groups[]`: 그 시각에 지하철·일반버스 막차가 끊긴 사람끼리 묶은 택시. `riders[]`는 내리는 순서이고 각자 `arrival`, `meter_at_dropoff`(내릴 때 미터기), `share`(낼 몫), `solo_fare`(혼자 탔으면), `saving`. `payer`는 마지막에 내려 택시비를 내는 사람
    - `taxi_groups[].estimated_meters`: 내릴 때 예상 미터기 (내린 순서)
    - `settlement[]`: 누가 누구에게 얼마 보내는지 **예상값** (`estimated: true`)
 5. 택시에서 내린 뒤 `POST /api/settle`로 실제 금액을 나눈다 (아래)
+6. 고치기·빠지기·끝내기 (토큰은 `Authorization: Bearer <토큰>` 헤더)
+   - `PATCH /api/groups/{id}/members/{member_id}` `{"nickname"?, "home"?}`: 본인(참여자 토큰) 또는 만든 사람(관리 토큰)
+   - `DELETE /api/groups/{id}/members/{member_id}`: 빠지기(본인) / 참여자 삭제(만든 사람). 주소도 바로 지운다
+   - `DELETE /api/groups/{id}`: 모임 끝내기(만든 사람만). 참여자 주소를 바로 지운다
+   - 만든 지 24시간이 지나면 참여자(집 주소)를 자동으로 지우고 `status: "expired"`로 남는다 (7일 뒤 기록도 삭제). 끝난 모임에 참여하면 410
+   - 토큰은 서버에 원문 없이 해시만 저장한다. 인원 제한은 없다
+
+### `POST /api/feedback` (도착 후 실제 택시비, F2-09)
+
+`{"option_id": "combo-1", "option_kind": "combo", "fare_range": [9400, 10600], "actual_fare": 10200, "distance_m": 7200, "departure": "2026-11-19T00:30"}` → `{"saved": true, "within_range": true}`. 건너뛰면 `{"skipped": true}`. 주소는 받지 않고 거리대(`~5km` 등)·시간대(시)만 남긴다
+
+### `POST /api/events` (사용 기록)
+
+`{"device_id": "브라우저에서 만든 임의 값", "name": "search", "area": "마포구 서교동", "option_kind": "combo"}` → `{"saved": true}`. 동 이름까지만 (주소 금지)
 
 묶기·정산 규칙 (`engine/groups.py`)
 - 한 차 4명까지. 합쳤을 때 택시비가 가장 많이 줄어드는 묶음부터 합친다. 혼자 갈 때보다 20분 넘게 늦어지는 사람이 생기면 안 합친다
@@ -121,6 +138,5 @@ S1 화면의 출발 시각 값(`"now"`, `"23:40"`)을 그대로 보내면 된다
 ## 아직 없는 것
 
 - 택시를 탈 사람을 직접 고르기 (지금은 막차 끊긴 사람 전부)
-- 인증·수정·삭제, 요청 제한
 - 실시간으로 뒤 구간 시각 다시 계산
 - 배포 (지금은 SQLite 파일 `server/data/mova.db`)

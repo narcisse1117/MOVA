@@ -60,6 +60,8 @@
     "value_won_per_min": 200,
     "min_saving_won": 3000,
     "min_saving_ratio": 0.2,
+    "recommend_max_delay_min": 15,
+    "_comment3": "맨 위 추천(F1-11): 택시 직행보다 recommend_max_delay_min분 넘게 늦지 않는 안 중 가장 많이 아끼는 안. 없으면 가장 싼 안. 조합은 최대 2안",
     "_comment2": "조합은 택시 직행보다 min_saving_won원 또는 min_saving_ratio 비율 중 큰 만큼 싸고, 대중교통만보다 5분 이상 빠를 때만 보여준다"
   }
 }
