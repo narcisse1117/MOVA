@@ -1,4 +1,7 @@
-// 명세: 출발 시각은 21:00 ~ 02:00, 10분 단위
+// 출발 시각은 하루 전체, 1분 단위 (시·분 따로 고름)
+export const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+export const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
+
 export function buildDepartureOptions() {
   const options = []
   // 21:00(1260분)부터 다음날 02:00(1560분)까지
@@ -17,8 +20,7 @@ export const DEPARTURE_OPTIONS = buildDepartureOptions()
 export function defaultDepartureTime(now = new Date()) {
   let m = now.getHours() * 60 + now.getMinutes()
   if (m < 3 * 60) m += 24 * 60 // 새벽은 전날 밤 기준으로
-  const rounded = Math.ceil(m / 10) * 10
-  if (rounded < 21 * 60 || rounded > 26 * 60) return '23:40'
+  const rounded = m
   const h = Math.floor(rounded / 60) % 24
   return `${String(h).padStart(2, '0')}:${String(rounded % 60).padStart(2, '0')}`
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppBar from '../components/AppBar.jsx'
 import Badge from '../components/Badge.jsx'
@@ -6,9 +6,9 @@ import Button from '../components/Button.jsx'
 import Checkbox from '../components/Checkbox.jsx'
 import Field from '../components/Field.jsx'
 import SegmentedControl from '../components/SegmentedControl.jsx'
-import { CURRENT_LOCATION, searchPlaces } from '../data/places.js'
+import { currentPlace, geocode } from '../api.js'
 import { loadHome, saveHome, saveSearch } from '../utils/storage.js'
-import { DEPARTURE_OPTIONS, defaultDepartureTime } from '../utils/time.js'
+import { HOURS, MINUTES, defaultDepartureTime } from '../utils/time.js'
 import styles from './InputPage.module.css'
 
 const TIME_MODES = [
@@ -23,10 +23,7 @@ export default function InputPage() {
   const navigate = useNavigate()
   const [home] = useState(loadHome)
 
-  const [origin, setOrigin] = useState({
-    text: `현재 위치 · ${CURRENT_LOCATION.name}`,
-    place: CURRENT_LOCATION,
-  })
+  const [origin, setOrigin] = useState({ text: '현재 위치 찾는 중…', place: null })
   const [destination, setDestination] = useState(emptyPoint)
   const [activeField, setActiveField] = useState(null) // 'origin' | 'destination' | null
   const [saveAsHome, setSaveAsHome] = useState(false)
@@ -35,10 +32,55 @@ export default function InputPage() {
   const [error, setError] = useState('')
 
   const activePoint = activeField === 'origin' ? origin : destination
-  const suggestions = useMemo(() => {
-    if (!activeField || activePoint.place) return []
-    return searchPlaces(activePoint.text, home)
-  }, [activeField, activePoint, home])
+  const [found, setFound] = useState({ query: '', list: [] })
+  const query = activeField && !activePoint.place ? activePoint.text.trim() : ''
+
+  // 입력이 0.3초 멈추면 서버에 검색 (앞 요청은 취소)
+  useEffect(() => {
+    if (!query) return
+    const ctrl = new AbortController()
+    const timer = setTimeout(async () => {
+      try {
+        const found = await geocode(query, ctrl.signal)
+        const q = query.replace(/\s/g, '')
+        const homeHit = home && home.name.replace(/\s/g, '').includes(q)
+        setFound({ query, list: (homeHit ? [{ ...home, isHome: true }, ...found] : found).slice(0, 6) })
+      } catch (err) {
+        if (err.name !== 'AbortError') setError('장소 검색이 안 돼요. 잠시 뒤에 다시 해 주세요')
+      }
+    }, 300)
+    return () => {
+      clearTimeout(timer)
+      ctrl.abort()
+    }
+  }, [query, home])
+  const suggestions = query && found.query === query ? found.list : []
+
+  function findLocation() {
+    return currentPlace().then(
+      (place) => setOrigin({ text: `현재 위치 · ${place.name}`, place }),
+      (err) => {
+        setOrigin(emptyPoint)
+        setError(err.message)
+      },
+    )
+  }
+
+  function locate() {
+    setOrigin({ text: '현재 위치 찾는 중…', place: null })
+    findLocation()
+  }
+
+  // 처음 열 때 현재 위치 (출발지는 이미 '찾는 중'으로 시작)
+  useEffect(() => {
+    currentPlace().then(
+      (place) => setOrigin({ text: `현재 위치 · ${place.name}`, place }),
+      (err) => {
+        setOrigin(emptyPoint)
+        setError(err.message)
+      },
+    )
+  }, [])
 
   const setPoint = activeField === 'origin' ? setOrigin : setDestination
 
@@ -108,9 +150,7 @@ export default function InputPage() {
             autoComplete="off"
             trailing="◎"
             trailingLabel="현재 위치로 설정"
-            onTrailingClick={() =>
-              setOrigin({ text: `현재 위치 · ${CURRENT_LOCATION.name}`, place: CURRENT_LOCATION })
-            }
+            onTrailingClick={locate}
           />
 
           <div className={styles.swapRow}>
@@ -147,7 +187,7 @@ export default function InputPage() {
                       {place.name}
                     </span>
                     <span className={`${styles.suggestionSub} t-caption`}>
-                      {place.isHome ? '저장된 집' : place.region}
+                      {place.isHome ? '저장된 집' : [place.region, place.kind === 'station' ? place.address : null].filter(Boolean).join(' · ')}
                     </span>
                   </button>
                 </li>
@@ -176,29 +216,29 @@ export default function InputPage() {
 
         {timeMode === 'pick' && (
           <>
-            <Field label="시간 선택 시">
-              {({ id, className }) => (
-                <>
-                  <select
-                    id={id}
-                    className={className}
-                    value={departure}
-                    onChange={(e) => setDeparture(e.target.value)}
-                  >
-                    {DEPARTURE_OPTIONS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                  <span className={styles.caret} aria-hidden="true">
-                    ▼
-                  </span>
-                </>
-              )}
-            </Field>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[
+                ['시', HOURS, departure.slice(0, 2), (v) => setDeparture(`${v}:${departure.slice(3)}`)],
+                ['분', MINUTES, departure.slice(3), (v) => setDeparture(`${departure.slice(0, 2)}:${v}`)],
+              ].map(([label, opts, value, onPick]) => (
+                <div key={label} style={{ flex: 1 }}>
+                  <Field label={label}>
+                    {({ id, className }) => (
+                      <>
+                        <select id={id} className={className} value={value} onChange={(e) => onPick(e.target.value)}>
+                          {opts.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                        <span className={styles.caret} aria-hidden="true">▼</span>
+                      </>
+                    )}
+                  </Field>
+                </div>
+              ))}
+            </div>
             <p className={`${styles.help} t-caption`}>
-              21:00 ~ 02:00 사이, 10분 단위로 고를 수 있어요
+              하루 중 언제든 1분 단위로 고를 수 있어요
             </p>
           </>
         )}

@@ -42,3 +42,34 @@ export function loadSearch() {
     return null
   }
 }
+
+// S2 결과를 S3(상세)에서 다시 쓰려고 sessionStorage에 둔다 (주소는 URL에 넣지 않음)
+const RESULT_KEY = 'mova:lastResult'
+
+export function saveResult(result) {
+  try {
+    sessionStorage.setItem(RESULT_KEY, JSON.stringify(result))
+  } catch {
+    // 저장 실패 시 S3는 다시 검색하라고 안내
+  }
+}
+
+export function loadResult() {
+  try {
+    const raw = sessionStorage.getItem(RESULT_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+// F2-09: 고른 안 (다음에 열면 실제 택시비를 묻는다)
+const CHOICE_KEY = 'mova:choice'
+
+export function saveChoice(choice) {
+  try {
+    localStorage.setItem(CHOICE_KEY, JSON.stringify(choice))
+  } catch {
+    // 무시
+  }
+}

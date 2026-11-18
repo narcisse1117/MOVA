@@ -1,0 +1,158 @@
+/* S2 결과, S3 상세 공통 */
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.muted {
+  color: var(--text-tertiary);
+}
+
+.cut {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.errorBox {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+  color: var(--text-strong);
+  text-decoration: none;
+}
+
+.recommended {
+  border: 2px solid var(--primary-default);
+}
+
+.disabled {
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.skeleton {
+  height: 120px;
+  background: var(--surface-subtle);
+  box-shadow: none;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.pick {
+  padding: 3px 8px;
+  border-radius: var(--radius-badge);
+  background: var(--accent-yellow);
+  color: var(--text-strong);
+}
+
+.cutTag {
+  color: var(--text-secondary);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.compare {
+  color: var(--primary-default);
+}
+
+.warn {
+  color: var(--text-secondary);
+}
+
+/* S3 타임라인 */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 0 18px 22px;
+  border-left: 2px solid var(--border-default);
+  margin-left: 6px;
+}
+
+.step:last-child {
+  border-left-color: transparent;
+}
+
+.step::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--surface-default);
+  border: 2px solid var(--border-strong);
+}
+
+.ride::before {
+  background: var(--primary-default);
+  border-color: var(--primary-default);
+}
+
+.walk {
+  color: var(--text-tertiary);
+}
+
+.alert {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
