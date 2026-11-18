@@ -65,7 +65,7 @@
                 "transit": 2800,
                 "taxi": 0
             },
-            "recommended": false,
+            "recommended": true,
             "combo_kind": null,
             "legs": [
                 {
@@ -99,7 +99,7 @@
                     "arrival": "2026-11-19T02:26:15+09:00",
                     "stops": 30,
                     "is_last": false,
-                    "headway_min": 23.966666666666665,
+                    "headway_min": 21.316666666666666,
                     "night": true,
                     "timetable": "observed",
                     "distance_m": 12869
@@ -136,7 +136,7 @@
                 "transit": 2800,
                 "taxi": 7200
             },
-            "recommended": true,
+            "recommended": false,
             "combo_kind": "taxi_last",
             "legs": [
                 {
