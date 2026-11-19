@@ -60,6 +60,15 @@ a {
   flex-direction: column;
 }
 
+/* 데스크톱에서 넓은 레이아웃을 쓰는 화면(data-layout="wide")만 화면 전체 폭 사용.
+   아직 데스크톱 레이아웃이 없는 화면은 모바일 폭 그대로 가운데에 표시 */
+@media (min-width: 1024px) {
+  #root:has([data-layout='wide']) {
+    max-width: none;
+    background: var(--bg-canvas);
+  }
+}
+
 .page-body {
   display: flex;
   flex-direction: column;

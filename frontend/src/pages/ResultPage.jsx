@@ -62,11 +62,13 @@ export default function ResultPage() {
         leading="back"
         title="경로 비교"
         tone="canvas"
+        wide
         onBack={() => navigate('/', { state: { edit: true } })}
         action={{ label: '공유', onClick: handleShare }}
       />
 
-      <div className="page-body">
+      {/* data-layout="wide": 데스크톱에서 넓은 레이아웃 사용 (index.css) */}
+      <div className={`page-body ${styles.layout}`} data-layout="wide">
         <section className={styles.summary} aria-label="검색 조건">
           <p className={`${styles.summaryText} t-label-medium`}>
             <span className={styles.route}>
@@ -74,7 +76,7 @@ export default function ResultPage() {
               <Icon name="arrow-right" size={14} label="에서" />
               {search.destination.name}
             </span>
-            {departLabel}
+            <span>{departLabel}</span>
           </p>
           <button
             type="button"
@@ -100,13 +102,20 @@ export default function ResultPage() {
           ))}
         </div>
 
-        <Button variant="secondary" className={styles.groupButton} onClick={() => navigate('/group/new')}>
-          친구들과 같이 가기 (모임 모드)
-        </Button>
+        {/* 데스크톱: 안내 문구(왼쪽)와 모임 버튼(오른쪽)을 한 줄로. 모바일에서는 기존처럼 버튼 → 문구 */}
+        <div className={styles.bottom}>
+          <Button
+            variant="secondary"
+            className={styles.groupButton}
+            onClick={() => navigate('/group/new')}
+          >
+            친구들과 같이 가기 (모임 모드)
+          </Button>
 
-        <p className={`${styles.caption} t-caption`}>
-          시간표 기준일 {TIMETABLE_DATE} · 실제 운행 여부는 운영사에서 확인하세요
-        </p>
+          <p className={`${styles.caption} ${styles.notice} t-caption`}>
+            시간표 기준일 {TIMETABLE_DATE} · 실제 운행 여부는 운영사에서 확인하세요
+          </p>
+        </div>
       </div>
 
       <div className={styles.toastArea} aria-live="polite">

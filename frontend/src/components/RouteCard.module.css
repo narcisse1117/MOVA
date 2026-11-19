@@ -66,6 +66,7 @@
 .footer {
   display: flex;
   justify-content: flex-end;
+  margin-top: auto; /* 데스크톱에서 카드 높이가 같아질 때 맨 아래로 */
 }
 
 .link {

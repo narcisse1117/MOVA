@@ -128,3 +128,59 @@
   flex-direction: column;
   gap: 16px;
 }
+
+/* ── 데스크톱 레이아웃 (1024px 이상) ──
+   Figma에 데스크톱 디자인이 없어 모바일 토큰·컴포넌트를 그대로 써서 구성:
+   왼쪽은 타이틀(모션 포함), 오른쪽은 흰 카드 안의 입력 폼 */
+
+/* 모바일: 두 묶음을 없는 것처럼 처리해서 기존처럼 한 줄로 쌓이게 */
+.intro,
+.panel {
+  display: contents;
+}
+
+@media (min-width: 1024px) {
+  .appBar {
+    height: 72px;
+    padding-inline: max(40px, calc((100% - 1200px) / 2 + 40px));
+    background: var(--bg-canvas);
+  }
+
+  .layout.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 440px;
+    align-items: center;
+    gap: 80px;
+    width: 100%;
+    max-width: 1200px;
+    min-height: calc(100svh - 72px);
+    margin: 0 auto;
+    padding: 32px 40px 72px;
+  }
+
+  .intro {
+    display: block;
+  }
+
+  .intro .hero {
+    font-size: 48px;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+
+  .intro .wordmark {
+    justify-content: flex-start;
+    font-size: 96px;
+    letter-spacing: -0.02em;
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 32px;
+    border-radius: var(--radius-card-lg);
+    background: var(--surface-default);
+    box-shadow: var(--elevation-raised);
+  }
+}

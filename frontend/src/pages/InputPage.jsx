@@ -111,129 +111,148 @@ export default function InputPage() {
 
   return (
     <>
-      <AppBar title="MOVA" action={{ label: '모임 만들기', to: '/group/new' }} />
+      <AppBar
+        title="MOVA"
+        className={styles.appBar}
+        action={{ label: '모임 만들기', to: '/group/new' }}
+      />
 
-      <form className="page-body" onSubmit={handleSubmit} noValidate>
-        {/* 타이틀 모션: 문구가 한 줄씩 내려오며 나타난 뒤, 6.4초에 MOVA 워드마크로 바뀜 (페이지 진입 시 1회) */}
-        <div className={styles.heroWrap}>
-          <h2 className={`${styles.hero} t-title-hero`}>
-            <span className={styles.heroLine}>
-              <span className={styles.accent}>밤 9시</span>부터{' '}
-              <span className={styles.muted}>새벽 2시</span>,
-            </span>
-            <span className={styles.heroLine}>택시와 대중교통을 함께 이용하는</span>
-            <span className={styles.heroLine}>최적의 조합을 찾아보세요</span>
-          </h2>
-          <p className={styles.wordmark} aria-hidden="true">
-            MOVA
-          </p>
-        </div>
-
-        <section className={styles.route} aria-label="경로 입력">
-          <Field
-            label="출발지"
-            placeholder="출발지를 입력하세요"
-            value={origin.text}
-            onChange={handleType(setOrigin)}
-            onFocus={() => setActiveField('origin')}
-            onBlur={closeList}
-            onKeyDown={closeOnEscape}
-            autoComplete="off"
-            trailing={<Icon name="locate" size={20} />}
-            trailingLabel="현재 위치로 설정"
-            onTrailingClick={() =>
-              setOrigin({ text: `현재 위치 · ${CURRENT_LOCATION.name}`, place: CURRENT_LOCATION })
-            }
-          />
-          <Autocomplete items={originSuggestions} onSelect={handleSelect(setOrigin)} label="출발지 추천" />
-
-          <div className={styles.swapRow}>
-            <Badge onClick={handleSwap} aria-label="출발지와 도착지 바꾸기">
-              <Icon name="swap-vertical" size={12} /> 출발·도착 바꾸기
-            </Badge>
-          </div>
-
-          <Field
-            label="도착지"
-            placeholder="도착지를 입력하세요"
-            value={destination.text}
-            onChange={handleType(setDestination)}
-            onFocus={() => setActiveField('destination')}
-            onBlur={closeList}
-            onKeyDown={closeOnEscape}
-            autoComplete="off"
-            trailing={destination.text ? <Icon name="close" size={18} /> : null}
-            trailingLabel="도착지 지우기"
-            onTrailingClick={() => {
-              setDestination(emptyPoint)
-              setActiveField('destination')
-            }}
-          />
-
-          <Autocomplete
-            items={destinationSuggestions}
-            onSelect={handleSelect(setDestination)}
-            label="도착지 추천"
-          />
-
-          <Checkbox
-            label="이 도착지를 집 주소로 저장 (이 기기에만)"
-            checked={saveAsHome}
-            onChange={setSaveAsHome}
-          />
-        </section>
-
-        <div className={styles.timeGroup}>
-          <p className={`${styles.label} t-label-medium`} id="time-mode-label">
-            출발 시각
-          </p>
-          <SegmentedControl
-            label="출발 시각"
-            options={TIME_MODES}
-            value={timeMode}
-            onChange={setTimeMode}
-          />
-        </div>
-
-        <Reveal show={timeMode === 'pick'} gap={16}>
-          <div className={styles.stack}>
-            <Field label="시간 선택 시">
-              {({ id, className }) => (
-                <>
-                  <select
-                    id={id}
-                    className={className}
-                    value={departure}
-                    onChange={(e) => setDeparture(e.target.value)}
-                  >
-                    {DEPARTURE_OPTIONS.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                  <Icon name="chevron-down" size={20} className={styles.caret} />
-                </>
-              )}
-            </Field>
-            <p className={`${styles.help} t-caption`}>
-              21:00 ~ 02:00 사이, 10분 단위로 고를 수 있어요
+      {/* data-layout="wide": 데스크톱에서 이 화면만 넓은 레이아웃을 쓰도록 표시 (index.css) */}
+      <form
+        className={`page-body ${styles.layout}`}
+        data-layout="wide"
+        onSubmit={handleSubmit}
+        noValidate
+      >
+        {/* 데스크톱: 왼쪽 소개 / 오른쪽 입력 카드. 모바일에서는 두 묶음이 사라지고 한 줄로 쌓임 */}
+        <div className={styles.intro}>
+          {/* 타이틀 모션: 문구가 한 줄씩 내려오며 나타난 뒤, 6.4초에 MOVA 워드마크로 바뀜 (페이지 진입 시 1회) */}
+          <div className={styles.heroWrap}>
+            <h2 className={`${styles.hero} t-title-hero`}>
+              <span className={styles.heroLine}>
+                <span className={styles.accent}>밤 9시</span>부터{' '}
+                <span className={styles.muted}>새벽 2시</span>,
+              </span>
+              <span className={styles.heroLine}>택시와 대중교통을 함께 이용하는</span>
+              <span className={styles.heroLine}>최적의 조합을 찾아보세요</span>
+            </h2>
+            <p className={styles.wordmark} aria-hidden="true">
+              MOVA
             </p>
           </div>
-        </Reveal>
+        </div>
 
-        <Reveal show={Boolean(error)} gap={16}>
-          <p className={`${styles.error} t-body-small`} role="alert">
-            {error}
-          </p>
-        </Reveal>
+        <div className={styles.panel}>
+          <section className={styles.route} aria-label="경로 입력">
+            <Field
+              label="출발지"
+              placeholder="출발지를 입력하세요"
+              value={origin.text}
+              onChange={handleType(setOrigin)}
+              onFocus={() => setActiveField('origin')}
+              onBlur={closeList}
+              onKeyDown={closeOnEscape}
+              autoComplete="off"
+              trailing={<Icon name="locate" size={20} />}
+              trailingLabel="현재 위치로 설정"
+              onTrailingClick={() =>
+                setOrigin({ text: `현재 위치 · ${CURRENT_LOCATION.name}`, place: CURRENT_LOCATION })
+              }
+            />
+            <Autocomplete
+              items={originSuggestions}
+              onSelect={handleSelect(setOrigin)}
+              label="출발지 추천"
+            />
 
-        <Button type="submit">경로 찾기</Button>
+            <div className={styles.swapRow}>
+              <Badge onClick={handleSwap} aria-label="출발지와 도착지 바꾸기">
+                <Icon name="swap-vertical" size={12} /> 출발·도착 바꾸기
+              </Badge>
+            </div>
 
-        <nav className={`${styles.footer} t-caption`} aria-label="약관">
-          <a href="#">개인정보 처리방침</a>
-          <a href="#">이용약관</a>
-        </nav>
+            <Field
+              label="도착지"
+              placeholder="도착지를 입력하세요"
+              value={destination.text}
+              onChange={handleType(setDestination)}
+              onFocus={() => setActiveField('destination')}
+              onBlur={closeList}
+              onKeyDown={closeOnEscape}
+              autoComplete="off"
+              trailing={destination.text ? <Icon name="close" size={18} /> : null}
+              trailingLabel="도착지 지우기"
+              onTrailingClick={() => {
+                setDestination(emptyPoint)
+                setActiveField('destination')
+              }}
+            />
+
+            <Autocomplete
+              items={destinationSuggestions}
+              onSelect={handleSelect(setDestination)}
+              label="도착지 추천"
+            />
+
+            <Checkbox
+              label="이 도착지를 집 주소로 저장 (이 기기에만)"
+              checked={saveAsHome}
+              onChange={setSaveAsHome}
+            />
+          </section>
+
+          <div className={styles.timeGroup}>
+            <p className={`${styles.label} t-label-medium`} id="time-mode-label">
+              출발 시각
+            </p>
+            <SegmentedControl
+              label="출발 시각"
+              options={TIME_MODES}
+              value={timeMode}
+              onChange={setTimeMode}
+            />
+          </div>
+
+          <Reveal show={timeMode === 'pick'} gap={16}>
+            <div className={styles.stack}>
+              <Field label="시간 선택 시">
+                {({ id, className }) => (
+                  <>
+                    <select
+                      id={id}
+                      className={className}
+                      value={departure}
+                      onChange={(e) => setDeparture(e.target.value)}
+                    >
+                      {DEPARTURE_OPTIONS.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                    <Icon name="chevron-down" size={20} className={styles.caret} />
+                  </>
+                )}
+              </Field>
+              <p className={`${styles.help} t-caption`}>
+                21:00 ~ 02:00 사이, 10분 단위로 고를 수 있어요
+              </p>
+            </div>
+          </Reveal>
+
+          <Reveal show={Boolean(error)} gap={16}>
+            <p className={`${styles.error} t-body-small`} role="alert">
+              {error}
+            </p>
+          </Reveal>
+
+          <Button type="submit">경로 찾기</Button>
+
+          <nav className={`${styles.footer} t-caption`} aria-label="약관">
+            <a href="#">개인정보 처리방침</a>
+            <a href="#">이용약관</a>
+          </nav>
+        </div>
       </form>
     </>
   )

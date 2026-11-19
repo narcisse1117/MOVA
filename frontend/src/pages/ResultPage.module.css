@@ -75,3 +75,70 @@
   color: var(--text-on-primary);
   box-shadow: var(--elevation-raised);
 }
+
+/* ── 데스크톱 레이아웃 (1024px 이상) ──
+   Figma에 데스크톱 디자인이 없어 모바일 토큰·컴포넌트로 구성:
+   검색 조건은 한 줄로, 경로 카드 3개는 나란히 놓아 바로 비교 */
+
+/* 모바일: 묶음 없이 기존처럼 쌓이게 */
+.bottom {
+  display: contents;
+}
+
+@media (min-width: 1024px) {
+  .layout.layout {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 40px 72px;
+    gap: 16px;
+  }
+
+  .summary {
+    padding: 18px 24px;
+  }
+
+  /* 출발지 → 도착지와 출발 시각을 한 줄로 */
+  .summaryText {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 16px;
+    font-size: 16px;
+  }
+
+  .summaryText > span + span::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 14px;
+    margin-right: 16px;
+    vertical-align: -2px;
+    background: var(--border-default);
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 20px;
+  }
+
+  .bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    margin-top: 8px;
+  }
+
+  .notice {
+    order: -1;
+  }
+
+  .groupButton.groupButton {
+    width: auto;
+    flex-shrink: 0;
+    padding: 0 28px;
+  }
+}
