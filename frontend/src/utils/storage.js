@@ -42,3 +42,24 @@ export function loadSearch() {
     return null
   }
 }
+
+// 명세: 고른 안을 저장 → S7(도착 후 질문)에서 사용 (localStorage)
+const CHOSEN_KEY = 'mova:chosenOption'
+
+export function saveChosenOption(chosen) {
+  try {
+    localStorage.setItem(CHOSEN_KEY, JSON.stringify({ ...chosen, savedAt: Date.now() }))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function loadChosenOption() {
+  try {
+    const raw = localStorage.getItem(CHOSEN_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}

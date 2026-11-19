@@ -1,6 +1,7 @@
 // ⚠️ 경로 API를 붙이기 전까지 쓰는 임시 데이터
 // Figma S2의 예시(강남역 → 수유)를 기준으로, 출발 시각에 따라
 // 도착 시각·막차 여부·환승 여유·심야 할증이 달라지게만 계산한다.
+import { formatFareRange } from '../utils/format.js'
 import { fromMinutes } from '../utils/time.js'
 
 // 화면 하단 안내 문구에 쓰는 시간표 기준일 (명세 C-04)
@@ -139,4 +140,92 @@ export function buildRouteOptions(dep) {
 
   const ordered = [combo, taxiDirect, transit]
   return [...ordered.filter((o) => o.available), ...ordered.filter((o) => !o.available)]
+}
+
+// ── S3 경로 상세 (임시 데이터) ──
+// 명세: 구간 타임라인에 갈아탈 역·출구 표기, 환승 구간마다 '놓쳤을 때' 대안 표시
+
+const TIGHT_TRANSFER = 4 // 환승 여유가 이 분 이하면 경고
+
+/**
+ * @param {string} optionId 'combo' | 'taxi' | 'transit'
+ * @param {number} dep 출발 시각(분)
+ * @param {{origin: {name}, destination: {name}}} search
+ * @returns {{option, steps} | null}
+ *   steps: [{ time, title, desc?, action?: 'kakao', warning?, missed?: {desc}, last?: boolean }]
+ */
+export function buildRouteDetail(optionId, dep, search) {
+  const option = buildRouteOptions(dep).find((o) => o.id === optionId)
+  if (!option) return null
+  if (!option.available) return { option, steps: [] }
+
+  const night = dep >= NIGHT_SURCHARGE_FROM
+  const won = (n) => `약 ${n.toLocaleString('ko-KR')}원`
+  const arrive = { title: `도착 · ${search.destination.name}` }
+
+  if (option.type === 'taxi') {
+    return {
+      option,
+      steps: [
+        {
+          time: fromMinutes(dep),
+          title: `${search.origin.name} 앞 택시 승차`,
+          desc: `택시 ${option.durationMin}분 · 약 ${formatFareRange(option.fareMin, option.fareMax)}`,
+          action: 'kakao',
+        },
+        { time: option.arrival, ...arrive },
+      ],
+    }
+  }
+
+  // combo / transit: 사당역에서 4호선으로 갈아탐
+  const firstLeg = option.legs[0].minutes
+  const atStation = dep + firstLeg
+  const train = atStation + option.transfer.margin
+  const isLast = train === LINE4_LAST_AT_SADANG
+  const missed = {
+    desc: `사당역에서 택시 직행 · ${won(night ? 18000 : 15000)} · 26분`,
+  }
+
+  const firstStep =
+    option.type === 'combo'
+      ? {
+          time: fromMinutes(dep),
+          title: `${search.origin.name} 앞 택시 승차`,
+          desc: `택시 ${firstLeg}분 · ${won(night ? 9000 : 7500)}`,
+          action: 'kakao',
+        }
+      : {
+          time: fromMinutes(dep),
+          title: '강남역 2호선 탑승 (사당 방면)',
+          desc: `4개 역 · ${firstLeg}분`,
+        }
+
+  return {
+    option,
+    steps: [
+      firstStep,
+      {
+        time: fromMinutes(atStation),
+        title: '사당역 하차 → 4호선 환승',
+        desc: `4번 출구로 들어가 승강장까지 도보 약 ${TRANSFER_WALK}분`,
+        warning:
+          option.transfer.margin <= TIGHT_TRANSFER
+            ? `환승 여유 ${option.transfer.margin}분 · 빠듯해요`
+            : null,
+      },
+      {
+        time: fromMinutes(train),
+        title: `4호선 당고개 방면 탑승${isLast ? ' (막차)' : ''}`,
+        desc: '9개 역 · 30분',
+        missed,
+      },
+      {
+        time: fromMinutes(train + 30),
+        title: '수유역 하차 · 6번 출구',
+        desc: '도보 7분',
+      },
+      { time: option.arrival, ...arrive },
+    ],
+  }
 }
