@@ -104,7 +104,6 @@ function adaptOption(o, fallbackId) {
       .filter((w) => w.code !== 'TIGHT_TRANSFER')
       .map((w) => ({ code: w.code, message: w.message })),
     realtime: firstRide?.realtime ? { label: legLabel(firstRide), ...firstRide.realtime } : null,
-    hasTaxi: legs.some((l) => l.type === 'taxi'),
     taxiDistanceM: legs
       .filter((l) => l.type === 'taxi')
       .reduce((sum, l) => sum + (l.distance_m ?? 0), 0),
@@ -150,7 +149,7 @@ export function adaptRoutes(res) {
 /**
  * S3 타임라인 단계 만들기 — 실제 구간(legs)에서 자동으로
  * 단계: [출발(도보로 시작할 때)] → 탑승 → (하차 → 환승 → 탑승)… → 하차 → 도착
- * 각 단계: { time, title, mode?, desc?, note?, action?: 'kakao', warning?, missed? }
+ * 각 단계: { time, title, mode?, desc?, note?, warning?, missed? }
  * mode가 있는 단계(타는 구간)는 세로선이 그 수단 색으로 칠해진다.
  */
 export function buildTimeline(option, search, departureIso) {
@@ -232,7 +231,6 @@ export function buildTimeline(option, search, departureIso) {
       title,
       desc,
       mode: isRide(mode) ? mode : undefined,
-      action: leg.type === 'taxi' ? 'kakao' : undefined,
       // 실시간(live) 정보는 첫 탈것에만 붙어 온다
       note: leg.realtime?.message ? `실시간 · ${leg.realtime.message}` : undefined,
       // 명세 F1-13: 놓쳤을 때 그 자리에서 택시를 타는 대안
