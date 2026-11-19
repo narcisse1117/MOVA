@@ -1,0 +1,56 @@
+/* 공통: 숨김 상태 → data-state="open"이 되면 보이는 상태로 전환 */
+.reveal {
+  --_ease: var(--ease-standard);
+  opacity: 0;
+  transition:
+    opacity var(--reveal-duration) var(--_ease),
+    transform var(--reveal-duration) var(--_ease),
+    grid-template-rows var(--reveal-duration) var(--_ease),
+    margin-top var(--reveal-duration) var(--_ease);
+}
+
+.reveal[data-state='open'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* collapse: 높이 0 ↔ 내용 높이 */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  /* 닫혀 있는 동안 부모 gap만큼 위로 당겨 빈 공간이 생기지 않게 */
+  margin-top: calc(var(--reveal-gap) * -1);
+}
+
+.collapse[data-state='open'] {
+  grid-template-rows: 1fr;
+  margin-top: 0;
+}
+
+.clip {
+  min-height: 0;
+  overflow: hidden;
+  /* 그림자·포커스 테두리가 잘리지 않도록 여유 공간 */
+  padding: 4px 4px 12px;
+  margin: -4px -4px -12px;
+  transform: translateY(calc(var(--motion-distance) * -0.5));
+  transition: transform var(--reveal-duration) var(--_ease);
+}
+
+.collapse[data-state='open'] .clip {
+  transform: none;
+}
+
+/* fade: 투명도만 바뀜 (추가 스타일 없음) */
+
+.slide-up {
+  transform: translateY(var(--motion-distance));
+}
+
+.slide-down {
+  transform: translateY(calc(var(--motion-distance) * -1));
+}
+
+.scale {
+  transform: scale(0.96);
+}

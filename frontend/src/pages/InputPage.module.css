@@ -1,5 +1,77 @@
+/* ── 타이틀 모션 (Figma 'S1 입력' 타임라인 9초, 1회 재생) ──
+   0 ~ 2.4s   : 세 줄이 위에서 31px 내려오며 차례로 나타남 (줄 간격 0.65s, 줄당 1.09s)
+   6.4 ~ 7.0s : 문구가 사라지고 같은 자리에 MOVA 워드마크가 나타남 */
+.heroWrap {
+  position: relative;
+}
+
 .hero {
   color: var(--text-strong);
+  animation: hero-out 0.6s ease-in-out 6.4s forwards;
+}
+
+.heroLine {
+  display: block;
+  animation: line-in 1.091s cubic-bezier(0, 0, 0.58, 1) both;
+}
+
+.heroLine:nth-child(2) {
+  animation-delay: 0.655s;
+}
+
+.heroLine:nth-child(3) {
+  animation-delay: 1.309s;
+}
+
+.wordmark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', var(--font-sans);
+  font-size: 36px;
+  font-weight: 600;
+  color: var(--text-strong);
+  opacity: 0;
+  pointer-events: none;
+  animation: wordmark-in 0.6s ease-in-out 6.4s forwards;
+}
+
+@keyframes line-in {
+  from {
+    opacity: 0;
+    transform: translateY(-31px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes wordmark-in {
+  to {
+    opacity: 1;
+  }
+}
+
+/* 움직임 줄이기 설정을 켠 사용자는 위치 이동 없이 페이드만 */
+@media (prefers-reduced-motion: reduce) {
+  .heroLine {
+    animation-name: fade-in;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
 }
 
 .accent {
@@ -21,40 +93,6 @@
   justify-content: flex-end;
 }
 
-.autocomplete {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow: hidden;
-  border-radius: var(--radius-lg);
-  background: var(--surface-default);
-  box-shadow: var(--elevation-card);
-}
-
-.suggestion {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  width: 100%;
-  padding: 10px 12px;
-  border: 0;
-  background: var(--surface-default);
-  text-align: left;
-}
-
-.suggestion:hover,
-.suggestionActive {
-  background: var(--surface-subtle);
-}
-
-.suggestionName {
-  color: var(--text-strong);
-}
-
-.suggestionSub {
-  color: var(--text-tertiary);
-}
-
 .timeGroup {
   display: flex;
   flex-direction: column;
@@ -66,7 +104,6 @@
 }
 
 .caret {
-  font-size: 14px;
   color: var(--text-tertiary);
   pointer-events: none;
 }
@@ -84,4 +121,66 @@
   justify-content: center;
   gap: 16px;
   color: var(--text-tertiary);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── 데스크톱 레이아웃 (1024px 이상) ──
+   Figma에 데스크톱 디자인이 없어 모바일 토큰·컴포넌트를 그대로 써서 구성:
+   왼쪽은 타이틀(모션 포함), 오른쪽은 흰 카드 안의 입력 폼 */
+
+/* 모바일: 두 묶음을 없는 것처럼 처리해서 기존처럼 한 줄로 쌓이게 */
+.intro,
+.panel {
+  display: contents;
+}
+
+@media (min-width: 1024px) {
+  .appBar {
+    height: 72px;
+    padding-inline: max(40px, calc((100% - 1200px) / 2 + 40px));
+    background: var(--bg-canvas);
+  }
+
+  .layout.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 440px;
+    align-items: center;
+    gap: 80px;
+    width: 100%;
+    max-width: 1200px;
+    min-height: calc(100svh - 72px);
+    margin: 0 auto;
+    padding: 32px 40px 72px;
+  }
+
+  .intro {
+    display: block;
+  }
+
+  .intro .hero {
+    font-size: 48px;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+
+  .intro .wordmark {
+    justify-content: flex-start;
+    font-size: 96px;
+    letter-spacing: -0.02em;
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 32px;
+    border-radius: var(--radius-card-lg);
+    background: var(--surface-default);
+    box-shadow: var(--elevation-raised);
+  }
 }

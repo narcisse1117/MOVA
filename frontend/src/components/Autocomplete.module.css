@@ -1,0 +1,50 @@
+/* 펼침/접힘은 Reveal이 담당. 여기서는 카드 모양과 항목이 차례로 나타나는 모션만 */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+}
+
+.item {
+  opacity: 0;
+  transform: translateY(calc(var(--motion-distance) * -0.5));
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+/* Reveal이 열리면 항목이 위에서부터 차례로 */
+[data-state='open'] .item {
+  opacity: 1;
+  transform: none;
+  transition-delay: calc(var(--i) * var(--motion-stagger) + 60ms);
+}
+
+.suggestion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: var(--surface-default);
+  text-align: left;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.suggestion:hover,
+.active {
+  background: var(--surface-subtle);
+}
+
+.name {
+  color: var(--text-strong);
+}
+
+.sub {
+  color: var(--text-tertiary);
+}

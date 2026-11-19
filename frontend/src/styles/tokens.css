@@ -11,7 +11,18 @@
   --text-disabled: #a0a6be;
   --text-on-primary: #ffffff;
   --primary-default: #2a3570;
+  --primary-soft: #e3e6f5;
   --accent-yellow: #ffcc00;
+  --bg-canvas: #f5f6fa;
+  --surface-muted: #dde1ee;
+  --surface-translucent: rgba(255, 255, 255, 0.6);
+
+  /* 이동 수단 (Leg bar) */
+  --mode-taxi: #ff8d28;
+  --mode-line2: #34c759;
+  --mode-line4: #00c0e8;
+  --mode-walk: var(--surface-muted);
+  --mode-none: var(--surface-subtle);
 
   /* Radius */
   --radius-sm: 4px;
@@ -23,11 +34,36 @@
   /* Elevation */
   --elevation-card: 0 6px 20px 0 rgba(26, 33, 64, 0.07),
     0 1px 3px 0 rgba(26, 33, 64, 0.04);
+  --elevation-raised: 0 12px 32px 0 rgba(26, 33, 64, 0.14),
+    0 2px 6px 0 rgba(26, 33, 64, 0.06);
+
+  /* Radius (카드) */
+  --radius-card: 16px;
+  --radius-card-lg: 20px;
 
   /* Font */
   --font-sans: 'Pretendard Variable', Pretendard, -apple-system,
     BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic',
     sans-serif;
+
+  /* Motion — 웹 전체에서 같은 속도와 곡선을 쓰기 위한 값
+     (JS 쪽 값은 src/motion/motion.js의 DURATION과 맞춰 둘 것) */
+  --motion-fast: 150ms; /* 색·테두리 변화, 작은 상태 전환 */
+  --motion-base: 250ms; /* 요소가 나타나고 사라질 때 (기본값) */
+  --motion-slow: 400ms; /* 큰 영역, 화면 전환 */
+  --ease-standard: cubic-bezier(0.45, 0, 0.55, 1); /* ease-in-out */
+  --motion-stagger: 40ms; /* 목록 항목이 차례로 나타날 때 간격 */
+  --motion-distance: 8px; /* 슬라이드할 때 이동 거리 */
+}
+
+/* 기기에서 '동작 줄이기'를 켠 사용자에게는 모션을 사실상 끔 */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 1ms;
+    --motion-base: 1ms;
+    --motion-slow: 1ms;
+    --motion-stagger: 0ms;
+  }
 }
 
 /* Typography — Figma 텍스트 스타일 이름 그대로 */

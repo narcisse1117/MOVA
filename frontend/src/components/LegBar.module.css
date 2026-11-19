@@ -1,0 +1,41 @@
+.bar {
+  display: flex;
+  gap: 2px;
+  width: 100%;
+}
+
+/* 걸리는 시간(--m)에 비례해 칸 너비를 나눔. 글자가 잘리지 않을 만큼은 항상 확보 */
+.leg {
+  flex: var(--m) 1 0;
+  min-width: fit-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
+.taxi {
+  background: var(--mode-taxi);
+  color: var(--text-on-primary);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.line2 {
+  background: var(--mode-line2);
+}
+
+.line4 {
+  background: var(--mode-line4);
+}
+
+.walk {
+  background: var(--mode-walk);
+}
+
+.none {
+  background: var(--mode-none);
+}

@@ -12,6 +12,12 @@ body {
   padding: 0;
 }
 
+/* 스크롤바가 생기고 사라질 때 화면이 좌우로 흔들리지 않도록
+   스크롤바 자리를 항상 비워 둔다 (양쪽에 같이 비워서 정확히 가운데 유지) */
+html {
+  scrollbar-gutter: stable both-edges;
+}
+
 body {
   font-family: var(--font-sans);
   color: var(--text-strong);
@@ -52,6 +58,15 @@ a {
   background: var(--surface-default);
   display: flex;
   flex-direction: column;
+}
+
+/* 데스크톱에서 넓은 레이아웃을 쓰는 화면(data-layout="wide")만 화면 전체 폭 사용.
+   아직 데스크톱 레이아웃이 없는 화면은 모바일 폭 그대로 가운데에 표시 */
+@media (min-width: 1024px) {
+  #root:has([data-layout='wide']) {
+    max-width: none;
+    background: var(--bg-canvas);
+  }
 }
 
 .page-body {

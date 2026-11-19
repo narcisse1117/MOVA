@@ -7,6 +7,13 @@
   padding: 0 16px;
   border: 0;
   border-radius: var(--radius-lg);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .primary {
