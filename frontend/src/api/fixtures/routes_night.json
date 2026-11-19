@@ -1,0 +1,215 @@
+{
+  "service_day": "2026-11-18",
+  "day_type": "WD",
+  "departure": "2026-11-19T00:30:00+09:00",
+  "live": false,
+  "options": [
+    {
+      "kind": "taxi",
+      "arrival": "2026-11-19T01:31:29+09:00",
+      "duration_min": 61,
+      "fare": 33300,
+      "rides": 0,
+      "fare_detail": {
+        "transit": 0,
+        "taxi": 33300
+      },
+      "fare_range": [
+        30600,
+        36000
+      ],
+      "recommended": false,
+      "legs": [
+        {
+          "type": "taxi",
+          "from": "홍대입구역",
+          "to": "노원역",
+          "departure": "2026-11-19T00:40:00+09:00",
+          "arrival": "2026-11-19T01:31:29+09:00",
+          "wait_sec": 600,
+          "drive_sec": 3089,
+          "distance_m": 25743,
+          "fare": 33300,
+          "fare_range": [
+            30600,
+            36000
+          ],
+          "source": "naver",
+          "estimated": false
+        }
+      ],
+      "option_id": "taxi",
+      "available": true,
+      "warnings": [],
+      "saving_vs_taxi": 0,
+      "delay_vs_taxi_min": 0
+    },
+    {
+      "kind": "transit",
+      "available": true,
+      "fare_range": [
+        2800,
+        2800
+      ],
+      "warnings": [
+        {
+          "code": "BUS_ESTIMATE",
+          "message": "버스 시각 일부는 첫차·막차와 배차 간격으로 추정했어요"
+        }
+      ],
+      "arrival": "2026-11-19T02:30:32+09:00",
+      "duration_min": 120,
+      "fare": 2800,
+      "rides": 2,
+      "fare_detail": {
+        "transit": 2800,
+        "taxi": 0
+      },
+      "recommended": true,
+      "combo_kind": null,
+      "legs": [
+        {
+          "type": "walk",
+          "from": "출발지",
+          "to": "홍대입구역",
+          "duration_sec": 213
+        },
+        {
+          "type": "bus",
+          "from": "홍대입구역",
+          "to": "동대문역.흥인지문",
+          "line": "271",
+          "trip": "기점 22:20 출발",
+          "departure": "2026-11-19T00:40:00+09:00",
+          "arrival": "2026-11-19T01:13:00+09:00",
+          "stops": 17,
+          "is_last": true,
+          "headway_min": 6.0,
+          "night": false,
+          "timetable": "estimate",
+          "distance_m": 10603
+        },
+        {
+          "type": "bus",
+          "from": "동대문역.흥인지문",
+          "to": "노원역5번출구.상계주공6단지",
+          "line": "N13",
+          "trip": "문정로데오거리입구 24:16 출발 (실측)",
+          "departure": "2026-11-19T01:32:39+09:00",
+          "arrival": "2026-11-19T02:26:15+09:00",
+          "stops": 30,
+          "is_last": false,
+          "headway_min": 21.316666666666666,
+          "night": true,
+          "timetable": "observed",
+          "distance_m": 12869
+        },
+        {
+          "type": "walk",
+          "from": "노원역5번출구.상계주공6단지",
+          "to": "도착지",
+          "duration_sec": 257
+        }
+      ],
+      "option_id": "transit-1",
+      "saving_vs_taxi": 30500,
+      "delay_vs_taxi_min": 60
+    },
+    {
+      "kind": "combo",
+      "available": true,
+      "fare_range": [
+        9400,
+        10600
+      ],
+      "warnings": [
+        {
+          "code": "BUS_ESTIMATE",
+          "message": "버스 시각 일부는 첫차·막차와 배차 간격으로 추정했어요"
+        }
+      ],
+      "arrival": "2026-11-19T02:06:26+09:00",
+      "duration_min": 96,
+      "fare": 10000,
+      "rides": 2,
+      "fare_detail": {
+        "transit": 2800,
+        "taxi": 7200
+      },
+      "recommended": false,
+      "combo_kind": "taxi_last",
+      "legs": [
+        {
+          "type": "walk",
+          "from": "출발지",
+          "to": "홍대입구역",
+          "duration_sec": 213
+        },
+        {
+          "type": "bus",
+          "from": "홍대입구역",
+          "to": "종로2가",
+          "line": "271",
+          "trip": "기점 22:20 출발",
+          "departure": "2026-11-19T00:40:00+09:00",
+          "arrival": "2026-11-19T01:03:00+09:00",
+          "stops": 12,
+          "is_last": true,
+          "headway_min": 6.0,
+          "night": false,
+          "timetable": "estimate",
+          "distance_m": 7317
+        },
+        {
+          "type": "bus",
+          "from": "종로2가",
+          "to": "도봉보건소.북한산아이파크아파트",
+          "line": "N15",
+          "trip": "서울미술고.인헌중고 24:16 출발 (실측)",
+          "departure": "2026-11-19T01:09:04+09:00",
+          "arrival": "2026-11-19T01:53:44+09:00",
+          "stops": 26,
+          "is_last": false,
+          "headway_min": 19.883333333333333,
+          "night": true,
+          "timetable": "observed",
+          "distance_m": 14227
+        },
+        {
+          "type": "taxi",
+          "from": "도봉보건소.북한산아이파크아파트",
+          "to": "도착지",
+          "departure": "2026-11-19T02:00:44+09:00",
+          "arrival": "2026-11-19T02:06:26+09:00",
+          "wait_sec": 420,
+          "drive_sec": 342,
+          "distance_m": 3132,
+          "fare": 7200,
+          "fare_range": [
+            6600,
+            7800
+          ],
+          "source": "naver",
+          "estimated": false
+        }
+      ],
+      "option_id": "combo-1",
+      "saving_vs_taxi": 23300,
+      "delay_vs_taxi_min": 35
+    }
+  ],
+  "last_service": {
+    "regular_last_departure": "2026-11-19T00:28:07+09:00",
+    "regular_cut": true,
+    "all_night": false
+  },
+  "data_as_of": {
+    "bus_official": "2026-11-16",
+    "night_bus": "2026-11-13",
+    "night_bus_day_type_match": true
+  },
+  "notes": [
+    "택시 구간의 source: naver_live(네이버 실시간 경로), naver(네이버 경로 거리 + 심야 속도), estimate(직선거리 추정)",
+    "버스는 막차·첫차만 공식 시각이고 그 사이는 배차 간격 기반 추정입니다"
+  ]
+}

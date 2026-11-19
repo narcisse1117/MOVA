@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AppBar from '../components/AppBar.jsx'
 import Autocomplete from '../components/Autocomplete.jsx'
@@ -9,7 +9,8 @@ import Field from '../components/Field.jsx'
 import Icon from '../components/Icon.jsx'
 import Reveal from '../components/Reveal.jsx'
 import SegmentedControl from '../components/SegmentedControl.jsx'
-import { CURRENT_LOCATION, searchPlaces } from '../data/places.js'
+import { reverse } from '../api/index.js'
+import { usePlaceSearch } from '../hooks/usePlaceSearch.js'
 import { loadHome, loadSearch, saveHome, saveSearch } from '../utils/storage.js'
 import { DEPARTURE_OPTIONS, defaultDepartureTime } from '../utils/time.js'
 import styles from './InputPage.module.css'
@@ -21,22 +22,48 @@ const TIME_MODES = [
 
 const emptyPoint = { text: '', place: null }
 
+/** 예전 형식(좌표 없음)으로 저장된 집은 쓰지 않음 */
+function loadValidHome() {
+  const home = loadHome()
+  return home && home.lat != null && home.label ? home : null
+}
+
+/** 저장된 집이 입력어와 맞으면 후보 맨 위에 */
+function withHome(results, query, home) {
+  const q = query.replace(/\s/g, '')
+  if (!home || !q || !home.label.replace(/\s/g, '').includes(q)) return results
+  return [{ ...home, id: 'home', isHome: true }, ...results.filter((p) => p.id !== home.sourceId)]
+}
+
+/** 자동완성 아래 안내 줄 (명세 오류 처리: 주소를 찾지 못함) */
+function statusOf(search) {
+  if (search.loading) return '찾는 중…'
+  if (search.error) return search.error
+  if (search.notes.length > 0) return search.notes[0]
+  if (search.searched && search.results.length === 0) {
+    return '주소를 찾지 못했어요. 역 이름으로도 검색할 수 있어요'
+  }
+  return ''
+}
+
 /** S1 입력 / */
 export default function InputPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [home] = useState(loadHome)
+  const [home] = useState(loadValidHome)
   // S2에서 '수정'·뒤로 가기로 돌아오면 직전 검색 조건을 채워 둔다
   const [previous] = useState(() => (location.state?.edit ? loadSearch() : null))
 
   const [origin, setOrigin] = useState(() =>
-    previous && previous.origin.id !== CURRENT_LOCATION.id
-      ? { text: previous.origin.name, place: previous.origin }
-      : { text: `현재 위치 · ${CURRENT_LOCATION.name}`, place: CURRENT_LOCATION },
+    previous?.origin?.label ? { text: previous.origin.label, place: previous.origin } : emptyPoint,
   )
-  const [destination, setDestination] = useState(() =>
-    previous ? { text: previous.destination.name, place: previous.destination } : emptyPoint,
-  )
+  const [destination, setDestination] = useState(() => {
+    if (previous?.destination?.label) {
+      return { text: previous.destination.label, place: previous.destination }
+    }
+    // 명세: 저장한 집 주소가 있으면 도착지 기본값
+    return home ? { text: home.label, place: home } : emptyPoint
+  })
   const [activeField, setActiveField] = useState(null) // 'origin' | 'destination' | null
   const [saveAsHome, setSaveAsHome] = useState(false)
   const [timeMode, setTimeMode] = useState(previous?.departure === 'now' ? 'now' : 'pick')
@@ -44,18 +71,23 @@ export default function InputPage() {
     previous && previous.departure !== 'now' ? previous.departure : defaultDepartureTime(),
   )
   const [error, setError] = useState('')
+  const [locating, setLocating] = useState(false)
 
-  // 입력 중인 칸의 자동완성만 그 칸 바로 아래에 펼친다
-  const originSuggestions = useMemo(
-    () => (activeField === 'origin' && !origin.place ? searchPlaces(origin.text, home) : []),
-    [activeField, origin, home],
+  // 입력 중인 칸만 GET /api/geocode로 후보를 찾아 그 칸 바로 아래에 펼친다
+  const originSearch = usePlaceSearch(origin.text, activeField === 'origin' && !origin.place)
+  const destinationSearch = usePlaceSearch(
+    destination.text,
+    activeField === 'destination' && !destination.place,
   )
-  const destinationSuggestions = useMemo(
-    () =>
-      activeField === 'destination' && !destination.place
-        ? searchPlaces(destination.text, home)
-        : [],
-    [activeField, destination, home],
+  const originSuggestions = withHome(
+    originSearch.results,
+    origin.text,
+    originSearch.searched && home,
+  )
+  const destinationSuggestions = withHome(
+    destinationSearch.results,
+    destination.text,
+    destinationSearch.searched && home,
   )
 
   function handleType(setter) {
@@ -67,7 +99,7 @@ export default function InputPage() {
 
   function handleSelect(setter) {
     return (place) => {
-      setter({ text: place.name, place })
+      setter({ text: place.label, place })
       setActiveField(null)
       setError('')
     }
@@ -77,6 +109,46 @@ export default function InputPage() {
   const closeList = () => setActiveField(null)
   const closeOnEscape = (e) => {
     if (e.key === 'Escape') closeList()
+  }
+
+  // 현재 위치: 브라우저 위치 → GET /api/reverse로 이름 붙이기
+  // TODO(명세 미정 사항): 위치정보법 신고 여부가 정해지면 버튼을 유지할지 결정
+  function handleLocate() {
+    if (!navigator.geolocation) {
+      setError('이 브라우저에서는 현재 위치를 쓸 수 없어요')
+      return
+    }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const res = await reverse(coords.latitude, coords.longitude)
+          const label = `현재 위치 · ${res.label}`
+          setOrigin({
+            text: label,
+            place: {
+              id: 'current',
+              kind: 'current',
+              label,
+              name: label,
+              region: res.label,
+              lat: coords.latitude,
+              lng: coords.longitude,
+            },
+          })
+          setError('')
+        } catch (err) {
+          setError(err.message)
+        } finally {
+          setLocating(false)
+        }
+      },
+      () => {
+        setLocating(false)
+        setError('현재 위치를 가져오지 못했어요. 출발지를 직접 입력해 주세요')
+      },
+      { timeout: 10000, maximumAge: 60000 },
+    )
   }
 
   function handleSwap() {
@@ -91,9 +163,10 @@ export default function InputPage() {
       return
     }
 
-    const outside = [origin.place, destination.place].find((p) => !p.isSeoul)
+    // 명세 C-06 + 서버 /api/geocode의 in_seoul: 서울 밖이면 계산하지 않고 안내(E1)
+    const outside = [origin.place, destination.place].find((p) => p.inSeoul === false)
     if (outside) {
-      navigate('/out-of-area', { state: { address: `${outside.region} ${outside.name}` } })
+      navigate('/out-of-area', { state: { address: `${outside.region} ${outside.label}` } })
       return
     }
 
@@ -154,13 +227,12 @@ export default function InputPage() {
               onKeyDown={closeOnEscape}
               autoComplete="off"
               trailing={<Icon name="locate" size={20} />}
-              trailingLabel="현재 위치로 설정"
-              onTrailingClick={() =>
-                setOrigin({ text: `현재 위치 · ${CURRENT_LOCATION.name}`, place: CURRENT_LOCATION })
-              }
+              trailingLabel={locating ? '현재 위치 찾는 중' : '현재 위치로 설정'}
+              onTrailingClick={handleLocate}
             />
             <Autocomplete
               items={originSuggestions}
+              status={statusOf(originSearch)}
               onSelect={handleSelect(setOrigin)}
               label="출발지 추천"
             />
@@ -190,6 +262,7 @@ export default function InputPage() {
 
             <Autocomplete
               items={destinationSuggestions}
+              status={statusOf(destinationSearch)}
               onSelect={handleSelect(setDestination)}
               label="도착지 추천"
             />

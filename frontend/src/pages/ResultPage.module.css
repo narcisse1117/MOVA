@@ -56,29 +56,80 @@
   box-shadow: 0 6px 10px rgba(26, 33, 64, 0.07), 0 1px 1.5px rgba(26, 33, 64, 0.04);
 }
 
-.toastArea {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 24px;
-  display: flex;
-  justify-content: center;
-  padding: 0 16px;
-  pointer-events: none;
-  z-index: 20;
+/* 막차 지남 / 택시만 남음 안내 */
+.banner {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  color: var(--primary-default);
 }
 
-.toast {
-  padding: 12px 16px;
-  border-radius: var(--radius-lg);
-  background: var(--text-strong);
-  color: var(--text-on-primary);
-  box-shadow: var(--elevation-raised);
+/* 계산 중 카드 자리 (S6-b 로딩과 같은 모양) */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--radius-card-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+}
+
+.skeleton span {
+  height: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  animation: pulse 1.2s var(--ease-standard) infinite alternate;
+  animation-delay: calc(var(--i) * 150ms);
+}
+
+.skeleton span:nth-child(1) {
+  width: 35%;
+}
+
+.skeleton span:nth-child(2) {
+  width: 65%;
+  height: 24px;
+}
+
+.skeleton span:nth-child(3) {
+  width: 85%;
+}
+
+.skeleton span:nth-child(4) {
+  width: 50%;
+}
+
+@keyframes pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 16px;
+  border-radius: var(--radius-card-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+  color: var(--text-strong);
+}
+
+/* 회색 배경 위의 흰 보조 버튼 */
+.raised.raised {
+  margin-top: 8px;
+  background: var(--surface-subtle);
 }
 
 /* ── 데스크톱 레이아웃 (1024px 이상) ──
    Figma에 데스크톱 디자인이 없어 모바일 토큰·컴포넌트로 구성:
-   검색 조건은 한 줄로, 경로 카드 3개는 나란히 놓아 바로 비교 */
+   검색 조건은 한 줄로, 경로 카드는 나란히 놓아 바로 비교 (카드 수는 서버 응답대로라 칸 수가 자동) */
 
 /* 모바일: 묶음 없이 기존처럼 쌓이게 */
 .bottom {
@@ -119,7 +170,7 @@
 
   .cards {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     align-items: stretch;
     gap: 20px;
   }

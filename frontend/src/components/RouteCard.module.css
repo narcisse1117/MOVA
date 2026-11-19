@@ -63,6 +63,18 @@
   color: var(--text-secondary);
 }
 
+.realtime {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+/* 서버 참고 안내 (버스 시각 추정, 교통 정보 없음) */
+.notice {
+  color: var(--text-tertiary);
+}
+
 .footer {
   display: flex;
   justify-content: flex-end;
