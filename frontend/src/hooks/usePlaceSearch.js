@@ -59,3 +59,21 @@ export function toPlace(r) {
     lng: r.lng,
   }
 }
+
+/** 저장된 집이 입력어와 맞으면 후보 맨 위에 */
+export function withHome(results, query, home) {
+  const q = query.replace(/\s/g, '')
+  if (!home || !q || !home.label.replace(/\s/g, '').includes(q)) return results
+  return [{ ...home, id: 'home', isHome: true }, ...results.filter((p) => p.id !== home.sourceId)]
+}
+
+/** 자동완성 아래 안내 줄 (명세 오류 처리: 주소를 찾지 못함) */
+export function placeStatus(search) {
+  if (search.loading) return '찾는 중…'
+  if (search.error) return search.error
+  if (search.notes.length > 0) return search.notes[0]
+  if (search.searched && search.results.length === 0) {
+    return '주소를 찾지 못했어요. 역 이름으로도 검색할 수 있어요'
+  }
+  return ''
+}
