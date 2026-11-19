@@ -1,0 +1,85 @@
+/* 모바일: 묶음 없이 page-body 안에 바로 쌓이게 */
+.panel {
+  display: contents;
+}
+
+.intro {
+  color: var(--text-strong);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.caret {
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.help {
+  color: var(--text-tertiary);
+}
+
+.error {
+  color: #d23b3b;
+}
+
+/* 링크 생성 후 카드 */
+.created {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface-subtle);
+  color: var(--text-strong);
+}
+
+.link {
+  padding: 10px 12px;
+  border-radius: var(--radius-segment);
+  background: var(--surface-default);
+  color: var(--text-strong);
+  word-break: break-all;
+  user-select: all; /* 복사가 막힌 브라우저에서 길게 눌러 선택하기 쉽게 */
+}
+
+.linkActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.linkActions button {
+  background: var(--surface-default);
+}
+
+/* ── 데스크톱 (1024px 이상): 회색 배경 가운데에 흰 카드 한 장 ── */
+@media (min-width: 1024px) {
+  .appBar {
+    background: var(--bg-canvas);
+  }
+
+  .layout.layout {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 32px 0 72px;
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 32px;
+    border-radius: var(--radius-card-lg);
+    background: var(--surface-default);
+    box-shadow: var(--elevation-raised);
+  }
+}
