@@ -169,7 +169,9 @@ def reconstruct(net, k, s, p_arr, p_ready, arr, egress_w, t0, last_leg=None):
         bs = int(r.stops[b])
         leg = {"type": r.kind, "line": r.name, "trip": r.trip_label[trip],
                "from": net.stop_name[bs], "dep": int(r.dep[trip, b]),
-               "to": net.stop_name[s], "arr": int(r.arr[trip, a]), "stops": a - b}
+               "to": net.stop_name[s], "arr": int(r.arr[trip, a]), "stops": a - b,
+               "from_ll": tuple(map(float, stop_ll(net)[bs])), "to_ll": tuple(map(float, stop_ll(net)[s])),
+               "is_last": not bool((r.dep[trip + 1:, b] < INF).any())}    # 그 정류장에서 오늘 마지막 운행
         if r.kind == "bus":
             leg["headway_min"] = r.headway_min
             leg["route_id"] = r.route_id

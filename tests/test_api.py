@@ -66,3 +66,96 @@ def test_cors_only_allowed_origins(client):
     assert ok.headers.get("access-control-allow-origin") == "http://localhost:5173"
     assert vercel.headers.get("access-control-allow-origin") == "https://mova.vercel.app"
     assert bad.status_code == 400
+
+
+def test_region_of_address():
+    assert app_mod.region_of("서울특별시 강남구 강남대로 396") == "서울 강남구"
+    assert app_mod.region_of("경기도 성남시 분당구 성남대로 지하 333") == "경기 성남시 분당구"
+    assert app_mod.region_of("") is None
+
+
+def test_geocode_keeps_outside_seoul_flagged(client, monkeypatch):
+    # 서울 밖도 돌려주되 in_seoul=false, 서울 안이 먼저
+    monkeypatch.setattr(app_mod.naver, "local_search", lambda q: [
+        {"name": "판교 카페", "address": "경기도 성남시 분당구 판교역로 1", "category": "카페", "lat": 37.39, "lng": 127.11},
+        {"name": "강남 카페", "address": "서울특별시 강남구 테헤란로 1", "category": "카페", "lat": 37.50, "lng": 127.03}])
+    r = client.get("/api/geocode", params={"q": "없는역이름카페"}).json()["results"]
+    assert [x["in_seoul"] for x in r] == [True, False]
+    assert r[0]["region"] == "서울 강남구" and r[1]["region"] == "경기 성남시 분당구"
+
+
+def test_resolve_time_clock_only():
+    mon_14 = dt.datetime(2026, 11, 16, 14, 0, tzinfo=KST)          # 월 14:00
+    assert app_mod.resolve_time("23:40", mon_14) == dt.datetime(2026, 11, 16, 23, 40, tzinfo=KST)
+    assert app_mod.resolve_time("00:30", mon_14) == dt.datetime(2026, 11, 17, 0, 30, tzinfo=KST)   # 같은 밤 새벽
+    tue_0010 = dt.datetime(2026, 11, 17, 0, 10, tzinfo=KST)        # 화 00:10 (월요일 밤)
+    assert app_mod.resolve_time("00:30", tue_0010) == dt.datetime(2026, 11, 17, 0, 30, tzinfo=KST)
+    assert app_mod.resolve_time("23:50", tue_0010) == dt.datetime(2026, 11, 16, 23, 50, tzinfo=KST)  # 20분 전: 그대로
+    assert app_mod.resolve_time("23:00", tue_0010) == dt.datetime(2026, 11, 17, 23, 0, tzinfo=KST)   # 지났음: 다음 밤
+    assert app_mod.resolve_time("now", mon_14) == mon_14 and app_mod.resolve_time(None, mon_14) == mon_14
+    with pytest.raises(ValueError):
+        app_mod.resolve_time("25:00", mon_14)
+
+
+def test_routes_rejects_bad_time(client):
+    body = {"origin": {"lat": 37.55, "lng": 126.92}, "destination": {"lat": 37.65, "lng": 127.06}, "departure_time": "밤"}
+    assert client.post("/api/routes", json=body).status_code == 422
+
+
+def test_resolve_time_iso_string():
+    assert app_mod.resolve_time("2026-11-09T23:30") == dt.datetime(2026, 11, 9, 23, 30, tzinfo=KST)
+    assert app_mod.resolve_time("2026-11-09T14:30:00Z") == dt.datetime(2026, 11, 9, 23, 30, tzinfo=KST)
+
+
+def test_routes_time_omitted_means_now():
+    req = app_mod.RouteRequest(origin={"lat": 37.55, "lng": 126.92}, destination={"lat": 37.65, "lng": 127.06})
+    assert abs((req.departure_time - dt.datetime.now(KST)).total_seconds()) < 5
+
+
+def test_early_morning_checks_both_service_days():
+    """03~05시는 전날 밤(심야버스)과 새 날(첫차) 운행일을 둘 다 본다. 그 밖에는 하나만."""
+    c = app_mod.service_day_candidates(dt.datetime(2026, 11, 17, 3, 30, tzinfo=KST))
+    assert [(d.isoformat(), s) for d, s, _ in c] == [("2026-11-16", 27 * 3600 + 1800), ("2026-11-17", 3 * 3600 + 1800)]
+    assert len(app_mod.service_day_candidates(dt.datetime(2026, 11, 17, 14, 0, tzinfo=KST))) == 1
+    assert len(app_mod.service_day_candidates(dt.datetime(2026, 11, 17, 6, 0, tzinfo=KST))) == 1
+    sat = app_mod.service_day_candidates(dt.datetime(2026, 11, 22, 4, 0, tzinfo=KST))     # 일요일 새벽 = 토요일 밤
+    assert [t for _, _, t in sat] == ["SAT", "HOL"]
+
+
+@needs_data
+def test_routes_330am_finds_night_bus(client):
+    r = client.post("/api/routes", json={"origin": {"lat": 37.5572, "lng": 126.9245},
+                                         "destination": {"lat": 37.4766, "lng": 126.9816},
+                                         "departure_time": "2026-11-17T03:30"}).json()
+    assert r["service_day"] == "2026-11-16"
+    routes = {l.get("line") for o in r["options"] for l in o["legs"]}
+    assert any(str(x).startswith("N") for x in routes if x)
+
+
+@needs_data
+def test_routes_cards_have_result_screen_fields(client):
+    r = client.post("/api/routes", json={"origin": {"lat": 37.5572, "lng": 126.9245},
+                                         "destination": {"lat": 37.6551, "lng": 127.0614},
+                                         "departure_time": "2026-11-17T00:40"}).json()
+    ids = [o["option_id"] for o in r["options"]]
+    assert ids[0] == "taxi" and len(set(ids)) == len(ids)
+    for o in r["options"]:
+        if not o["available"]:
+            continue
+        lo, hi = o["fare_range"]
+        assert lo <= hi and isinstance(o["saving_vs_taxi"], int) and isinstance(o["delay_vs_taxi_min"], int)
+        for w in o["warnings"]:
+            assert w["code"] in ("TIGHT_TRANSFER", "BUS_ESTIMATE", "NO_TRAFFIC") and w["message"]
+    assert r["last_service"]["regular_cut"] is True            # 00:40이면 홍대→노원 일반 막차는 끊김
+    assert r["data_as_of"]["bus_official"]
+
+
+def test_tight_transfer_warning_has_fallback_taxi():
+    legs = [{"type": "walk", "from": "출발지", "to": "A", "sec": 60},
+            {"type": "rail", "from": "A", "to": "B", "dep": 1000, "arr": 2000, "line": "2호선", "trip": "x",
+             "to_ll": (37.5, 127.0)},
+            {"type": "walk", "from": "B", "to": "C", "sec": 60},
+            {"type": "bus", "from": "C", "to": "D", "dep": 2100, "arr": 2600, "line": "N13", "trip": "y (실측)"}]
+    w = app_mod.option_warnings({"legs": legs}, (37.6, 127.05))
+    assert [x["code"] for x in w] == ["TIGHT_TRANSFER"]
+    assert w[0]["slack_sec"] == 40 and w[0]["fallback_taxi"]["fare"] > 0

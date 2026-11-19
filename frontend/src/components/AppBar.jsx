@@ -10,6 +10,7 @@ import styles from './AppBar.module.css'
  *   오른쪽 텍스트 액션 — to가 있으면 링크, onClick이 있으면 버튼
  * @param {() => void} [onBack] 뒤로 가기 동작 (기본: 브라우저 뒤로)
  * @param {'default'|'canvas'} [tone] 배경색 — 회색 배경 화면(S2 등)에서는 canvas
+ * @param {string} [className] 화면별로 덧붙일 스타일 (예: 데스크톱 레이아웃)
  * @param {boolean} [wide] 데스크톱 넓은 레이아웃 화면이면 true (1024px 이상에서 높이·좌우 여백을 본문 폭에 맞춤)
  */
 export default function AppBar({
@@ -18,13 +19,14 @@ export default function AppBar({
   action,
   onBack,
   tone = 'default',
+  className = '',
   wide = false,
 }) {
   const navigate = useNavigate()
 
   return (
     <header
-      className={`${styles.bar} ${tone === 'canvas' ? styles.canvas : ''} ${wide ? styles.wide : ''}`}
+      className={`${styles.bar} ${tone === 'canvas' ? styles.canvas : ''} ${wide ? styles.wide : ''} ${className}`}
     >
       {leading === 'back' ? (
         <button

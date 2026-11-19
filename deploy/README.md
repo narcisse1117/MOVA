@@ -54,7 +54,7 @@ cd ~/MOVA && bash deploy/setup.sh <탄력적IP>.sslip.io
 | 언제 | 무엇 |
 |---|---|
 | 월·토 14:00 | `fetch_bus_times.py` 정류장별 공식 첫차·막차 (평일·토요일) |
-| 수·금 22:50 | `collect_night_bus.py` 심야버스 실제 통과 시각 |
+| 수·금·토 22:50 | `collect_night_bus.py` 심야버스 실제 통과 시각 |
 
 공휴일 값이 필요하면 일요일에 `fetch_bus_times.py`를 한 번 돌린다. 새 파일이 생기면 API 서버가 다음 요청 때 노선망을 다시 읽는다.
 
