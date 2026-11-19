@@ -43,3 +43,11 @@
   border: 0;
   background: none;
 }
+
+/* 데스크톱 넓은 레이아웃: 본문(최대 1200px, 좌우 40px)과 같은 선에 맞춤 */
+@media (min-width: 1024px) {
+  .wide {
+    height: 72px;
+    padding-inline: max(40px, calc((100% - 1200px) / 2 + 40px));
+  }
+}
