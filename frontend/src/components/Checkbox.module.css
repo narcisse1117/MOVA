@@ -24,6 +24,9 @@
   background: var(--surface-default);
   display: grid;
   place-items: center;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
 }
 
 .input:checked + .box {

@@ -11,6 +11,9 @@
 }
 
 .icon {
+  display: grid;
+  place-items: center;
+  margin-left: -4px;
   padding: 0;
   border: 0;
   background: none;
@@ -29,4 +32,14 @@
 .action {
   flex-shrink: 0;
   color: var(--text-tertiary);
+}
+
+.canvas {
+  background: var(--bg-canvas);
+}
+
+.actionButton {
+  padding: 0;
+  border: 0;
+  background: none;
 }
