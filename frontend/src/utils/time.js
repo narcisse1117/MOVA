@@ -22,3 +22,25 @@ export function defaultDepartureTime(now = new Date()) {
   const h = Math.floor(rounded / 60) % 24
   return `${String(h).padStart(2, '0')}:${String(rounded % 60).padStart(2, '0')}`
 }
+
+// ── S2용 시각 계산 ──
+// 밤~새벽을 한 줄로 계산하려고 새벽(03시 전)은 24시를 더한 '분'으로 다룬다. 예: 00:32 → 1472
+
+/** 'HH:MM' → 분 */
+export function toMinutes(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number)
+  const total = h * 60 + m
+  return h < 3 ? total + 24 * 60 : total
+}
+
+/** 분 → 'HH:MM' */
+export function fromMinutes(total) {
+  const h = Math.floor(total / 60) % 24
+  return `${String(h).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+/** 검색 조건의 출발 시각('now' 또는 'HH:MM')을 분으로 */
+export function departureMinutes(departure, now = new Date()) {
+  if (departure && departure !== 'now') return toMinutes(departure)
+  return toMinutes(fromMinutes(now.getHours() * 60 + now.getMinutes()))
+}

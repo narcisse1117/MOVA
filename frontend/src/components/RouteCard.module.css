@@ -1,0 +1,91 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: var(--radius-card-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+  /* 화면에 들어올 때 차례로 올라오며 나타남 (공통 모션 값 사용) */
+  animation: card-in var(--motion-slow) var(--ease-standard) both;
+  animation-delay: calc(var(--i) * var(--motion-stagger) * 2);
+}
+
+.highlighted {
+  box-shadow: var(--elevation-raised);
+}
+
+.unavailable {
+  background: var(--surface-translucent);
+  box-shadow: none;
+}
+
+.badges {
+  display: flex;
+  gap: 6px;
+}
+
+.title {
+  color: var(--text-tertiary);
+}
+
+.fare {
+  color: var(--text-strong);
+}
+
+.unavailable .fare {
+  color: var(--text-disabled);
+}
+
+.fare del {
+  text-decoration-thickness: 2px;
+}
+
+.note {
+  color: var(--text-secondary);
+}
+
+.saving {
+  color: var(--primary-default);
+}
+
+.meta {
+  color: var(--text-secondary);
+}
+
+.warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--radius-badge);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-tertiary);
+  transition: color var(--motion-fast) var(--ease-standard);
+}
+
+.link:hover {
+  color: var(--text-strong);
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance));
+  }
+}
