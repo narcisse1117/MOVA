@@ -1,3 +1,4 @@
+import { modeColor } from '../data/modes.js'
 import Badge from './Badge.jsx'
 import Icon from './Icon.jsx'
 import styles from './Timeline.module.css'
@@ -15,9 +16,10 @@ function withArrows(text) {
 
 /**
  * S3 구간 타임라인
- * @param {{time, title, desc?, action?, warning?, missed?}[]} steps data/routes.js의 buildRouteDetail 결과
+ * @param {{time, title, mode?, desc?, note?, action?, warning?, missed?}[]} steps api/adapt.js의 buildTimeline 결과
  * @param {() => void} onKakao '카카오 T로 부르기' 눌렀을 때
- * @param {() => void} onAlternative '대안 경로 보기' 눌렀을 때
+ * @param {() => void} [onAlternative] '대안 경로 보기' 눌렀을 때. 없으면 링크를 숨김
+ *   (서버 fallback_taxi에는 요금만 있고 대안 경로가 없어서 지금은 넘기지 않음)
  */
 export default function Timeline({ steps, onKakao, onAlternative }) {
   return (
@@ -26,9 +28,21 @@ export default function Timeline({ steps, onKakao, onAlternative }) {
         <li key={i} className={styles.step} style={{ '--i': i }}>
           <time className={`${styles.time} t-label-strong`}>{step.time}</time>
 
-          <div className={styles.body}>
+          {/* 타고 가는 구간은 세로선을 그 경로의 이동 수단 색으로 (Figma S3) */}
+          <div
+            className={styles.body}
+            style={step.mode ? { '--line-color': modeColor(step.mode) } : undefined}
+          >
             <p className={styles.title}>{withArrows(step.title)}</p>
             {step.desc && <p className={`${styles.desc} t-body-small`}>{step.desc}</p>}
+
+            {/* 지금 출발이면 첫 탈것의 실시간 도착 (서버 realtime.message) */}
+            {step.note && (
+              <div className={styles.note}>
+                <Badge tone="primary">실시간</Badge>
+                <p className="t-caption">{step.note.replace(/^실시간 · /, '')}</p>
+              </div>
+            )}
 
             {step.action === 'kakao' && (
               <button type="button" className={`${styles.chip} t-label-medium`} onClick={onKakao}>
@@ -49,14 +63,16 @@ export default function Timeline({ steps, onKakao, onAlternative }) {
               <div className={styles.missed}>
                 <p className="t-label-strong">놓쳤을 때</p>
                 <p className={`${styles.missedDesc} t-body-small`}>{step.missed.desc}</p>
-                <button
-                  type="button"
-                  className={`${styles.link} t-label-medium`}
-                  onClick={onAlternative}
-                >
-                  대안 경로 보기
-                  <Icon name="chevron-right" size={14} />
-                </button>
+                {onAlternative && (
+                  <button
+                    type="button"
+                    className={`${styles.link} t-label-medium`}
+                    onClick={onAlternative}
+                  >
+                    대안 경로 보기
+                    <Icon name="chevron-right" size={14} />
+                  </button>
+                )}
               </div>
             )}
           </div>

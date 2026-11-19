@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { buildTimeline } from '../api/adapt.js'
+import { sendEvent } from '../api/index.js'
 import AppBar from '../components/AppBar.jsx'
 import Badge from '../components/Badge.jsx'
 import Button from '../components/Button.jsx'
@@ -7,62 +9,101 @@ import Icon from '../components/Icon.jsx'
 import LegBar from '../components/LegBar.jsx'
 import Timeline from '../components/Timeline.jsx'
 import Toast from '../components/Toast.jsx'
-import { TIMETABLE_DATE, buildRouteDetail } from '../data/routes.js'
+import { useRouteSearch } from '../hooks/useRouteSearch.js'
 import { useToast } from '../hooks/useToast.js'
 import { formatFareRange } from '../utils/format.js'
 import { loadSearch, saveChosenOption } from '../utils/storage.js'
-import { departureMinutes, fromMinutes } from '../utils/time.js'
 import styles from './DetailPage.module.css'
 
-/** S3 경로 상세 /result/:optionId */
+/** 명세 C-04 기준일 안내 (서버 data_as_of: 버스·심야버스 날짜) */
+function dataAsOfText(asOf) {
+  const dot = (d) => String(d).replaceAll('-', '.')
+  const parts = []
+  if (asOf?.bus_official) parts.push(`버스 시간표 ${dot(asOf.bus_official)}`)
+  if (asOf?.night_bus) parts.push(`심야버스 실측 ${dot(asOf.night_bus)}`)
+  return `${parts.length ? `${parts.join(' · ')} 기준 · ` : ''}실제 운행은 운영사 안내를 확인하세요`
+}
+
+/** S3 경로 상세 /result/:optionId (optionId는 서버 option_id: combo-1, taxi, transit-1 …) */
 export default function DetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { optionId } = useParams()
 
   // 명세: 주소는 URL에 넣지 않음 → S2에서 넘긴 state, 새로고침이면 sessionStorage에서
-  const [search] = useState(() => location.state ?? loadSearch())
-  const [dep] = useState(() => (search ? departureMinutes(search.departure) : 0))
+  const [search] = useState(() => {
+    const s = location.state ?? loadSearch()
+    return s?.origin?.lat != null && s?.destination?.lat != null ? s : null
+  })
+  // S2와 같은 검색이면 저장해 둔 응답을 그대로 씀 (서버에 다시 부르지 않음)
+  const { status, data, error, retry } = useRouteSearch(search)
   const [toast, showToast] = useToast()
 
   if (!search) return <Navigate to="/" replace />
-  const detail = buildRouteDetail(optionId, dep, search)
-  if (!detail) return <Navigate to="/result" replace />
-
-  const { option, steps } = detail
-  const usesTaxi = option.legs.some((leg) => leg.mode === 'taxi')
   const backToResult = () => navigate('/result', { state: search })
 
-  // 명세: 고른 안을 저장 → S7(도착 후 질문)에서 사용
+  if (status !== 'ready') {
+    return (
+      <div className={styles.page}>
+        <AppBar leading="back" title="경로 상세" tone="canvas" wide onBack={backToResult} />
+        <div className="page-body">
+          <section className={styles.state} role={status === 'error' ? 'alert' : 'status'}>
+            {status === 'error' ? (
+              <>
+                <p className="t-heading-medium">경로를 불러오지 못했어요</p>
+                <p className={`${styles.notice} t-body-small`}>{error.message}</p>
+                <Button variant="secondary" onClick={retry}>
+                  다시 불러오기
+                </Button>
+              </>
+            ) : (
+              <p className={`${styles.notice} t-body-small`}>경로를 불러오는 중이에요</p>
+            )}
+          </section>
+        </div>
+      </div>
+    )
+  }
+
+  const option = data.options.find((o) => o.id === optionId)
+  if (!option) return <Navigate to="/result" replace state={search} />
+
+  const steps = option.available ? buildTimeline(option, search, data.departureIso) : []
+  const kindBadge = option.badges.find((b) => b.text !== '추천') ?? option.badges[0]
+
+  // 명세: 고른 안을 저장 → S7(도착 후 질문)에서 POST /api/feedback으로 보낼 값까지
   function choose() {
     saveChosenOption({
       optionId: option.id,
-      badge: option.badge,
+      optionKind: option.kind,
       title: option.title,
-      origin: search.origin.name,
-      destination: search.destination.name,
-      departure: fromMinutes(dep),
+      origin: search.origin.label,
+      destination: search.destination.label,
+      departure: data.departureIso,
       arrival: option.arrival,
-      fareMin: option.fareMin,
-      fareMax: option.fareMax,
+      fareRange: [option.fareMin, option.fareMax],
+      distanceM: option.taxiDistanceM,
     })
+    sendEvent('select_option', { optionKind: option.kind })
   }
 
   function handleKakao() {
     choose()
-    // TODO(명세 11월 3주): 카카오 T에 출발·도착을 넘기는 링크 방식이 확정되면 연결
+    sendEvent('open_call_app', { optionKind: option.kind })
+    // TODO(명세 F1-14, 미정 사항): 카카오 T에 택시 탈 지점·도착지를 넘기는 링크 방식이 정해지면 연결
+    // 서버 택시 구간에 좌표가 없어서 탈 지점 좌표 추가도 필요
     showToast('카카오 T 연결은 준비 중이에요')
   }
 
-  function handleChooseTransit() {
+  function handleChoose() {
     choose()
     showToast('이 경로를 저장했어요')
   }
 
   async function handleShare() {
     const text = [
-      `${search.origin.name} → ${search.destination.name}`,
-      `${option.badge} ${formatFareRange(option.fareMin, option.fareMax)}`,
+      `${search.origin.label} → ${search.destination.label}`,
+      `${kindBadge.text} ${formatFareRange(option.fareMin, option.fareMax)}`,
       ...steps.map((s) => `${s.time} ${s.title}`),
       '— MOVA',
     ].join('\n')
@@ -82,11 +123,11 @@ export default function DetailPage() {
     <div className={styles.page}>
       <AppBar
         leading="back"
-        title={`${option.badge} 상세`}
+        title={`${kindBadge.text} 상세`}
         tone="canvas"
         wide
         onBack={backToResult}
-        action={{ label: '공유', onClick: handleShare }}
+        action={option.available ? { label: '공유', onClick: handleShare } : undefined}
       />
 
       {/* data-layout="wide": 데스크톱에서 넓은 레이아웃 사용 (index.css) */}
@@ -95,34 +136,33 @@ export default function DetailPage() {
         <aside className={styles.side}>
           <section className={styles.summary} aria-label="경로 요약">
             <div className={styles.badges}>
-              <Badge tone={option.type === 'combo' ? 'primary' : 'default'}>{option.badge}</Badge>
-              {!option.available && <Badge tone="muted">막차 끊김</Badge>}
+              {option.badges.map((b) => (
+                <Badge key={b.text} tone={b.tone}>
+                  {b.text}
+                </Badge>
+              ))}
             </div>
 
-            <p className={`${styles.fare} ${!option.available ? styles.fareOff : ''} t-fare-l`}>
-              {option.available ? (
-                formatFareRange(option.fareMin, option.fareMax)
-              ) : (
-                <del>
-                  <span className="sr-only">이용 불가, </span>
+            {option.available ? (
+              <>
+                <p className={`${styles.fare} t-fare-l`}>
                   {formatFareRange(option.fareMin, option.fareMax)}
-                </del>
-              )}
-            </p>
-
-            <p className={`${styles.meta} t-body-small`}>
-              {option.available ? (
-                <>
-                  {option.durationMin}분 · {fromMinutes(dep)} 출발
+                </p>
+                <p className={`${styles.meta} t-body-small`}>
+                  {option.durationMin}분 · {data.departure} 출발
                   <Icon name="arrow-right" size={12} className={styles.metaArrow} />
                   {option.arrival} 도착
-                </>
-              ) : (
-                option.unavailableReason
-              )}
-            </p>
-
-            <LegBar legs={option.legs} />
+                </p>
+                <LegBar legs={option.bar} />
+                {option.notices.map((n) => (
+                  <p key={n.code} className={`${styles.notice} t-caption`}>
+                    {n.message}
+                  </p>
+                ))}
+              </>
+            ) : (
+              <p className={`${styles.meta} t-body-small`}>{option.message}</p>
+            )}
           </section>
 
           <div className={styles.actions}>
@@ -130,25 +170,20 @@ export default function DetailPage() {
               <Button variant="secondary" className={styles.raised} onClick={backToResult}>
                 다른 안 보기
               </Button>
-            ) : usesTaxi ? (
+            ) : option.hasTaxi ? (
               <Button onClick={handleKakao}>카카오 T로 택시 부르기</Button>
             ) : (
-              <Button onClick={handleChooseTransit}>이 경로로 갈게요</Button>
+              // 명세 S3: '이렇게 갈게요' → 선택 기록
+              <Button onClick={handleChoose}>이렇게 갈게요</Button>
             )}
           </div>
 
-          <p className={`${styles.notice} t-caption`}>
-            시간표 기준일 {TIMETABLE_DATE} · 실제 운행 여부는 운영사에서 확인하세요
-          </p>
+          <p className={`${styles.notice} t-caption`}>{dataAsOfText(data.dataAsOf)}</p>
         </aside>
 
         {steps.length > 0 && (
           <div className={styles.timeline}>
-            <Timeline
-              steps={steps}
-              onKakao={handleKakao}
-              onAlternative={() => navigate('/result/taxi', { state: search })}
-            />
+            <Timeline steps={steps} onKakao={handleKakao} />
           </div>
         )}
       </div>
