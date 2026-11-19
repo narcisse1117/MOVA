@@ -1,15 +1,30 @@
-import { useMemo, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import AppBar from '../components/AppBar.jsx'
 import Button from '../components/Button.jsx'
 import Icon from '../components/Icon.jsx'
-import Reveal from '../components/Reveal.jsx'
 import RouteCard from '../components/RouteCard.jsx'
-import { TIMETABLE_DATE, buildRouteOptions } from '../data/routes.js'
+import Toast from '../components/Toast.jsx'
+import { useRouteSearch } from '../hooks/useRouteSearch.js'
+import { useToast } from '../hooks/useToast.js'
 import { formatFareRange } from '../utils/format.js'
 import { loadSearch } from '../utils/storage.js'
-import { departureMinutes, fromMinutes } from '../utils/time.js'
 import styles from './ResultPage.module.css'
+
+/** '2026-11-16' → '2026.11.16' */
+const dot = (d) => String(d).replaceAll('-', '.')
+
+/**
+ * 명세 C-04 기준일 안내. 서버 data_as_of에는 버스·심야버스 날짜만 있다
+ * TODO(서버): 지하철 시간표 기준일(data_as_of.subway)이 생기면 함께 표시
+ */
+function dataAsOfText(asOf) {
+  const parts = []
+  if (asOf?.bus_official) parts.push(`버스 시간표 ${dot(asOf.bus_official)}`)
+  if (asOf?.night_bus) parts.push(`심야버스 실측 ${dot(asOf.night_bus)}`)
+  const base = parts.length ? `${parts.join(' · ')} 기준 · ` : ''
+  return `${base}실제 운행은 운영사 안내를 확인하세요`
+}
 
 /** S2 결과 /result */
 export default function ResultPage() {
@@ -17,32 +32,34 @@ export default function ResultPage() {
   const location = useLocation()
 
   // 명세: 주소는 URL에 넣지 않음 → S1에서 넘긴 state, 새로고침이면 sessionStorage에서
-  const [search] = useState(() => location.state ?? loadSearch())
-  // '지금 출발'은 화면을 연 시각으로 고정
-  const [dep] = useState(() => (search ? departureMinutes(search.departure) : 0))
-  const options = useMemo(() => buildRouteOptions(dep), [dep])
-
-  const [toast, setToast] = useState('')
-  const toastTimer = useRef(0)
+  const [search] = useState(() => {
+    const s = location.state ?? loadSearch()
+    return s?.origin?.lat != null && s?.destination?.lat != null ? s : null
+  })
+  const { status, data, error, slow, retry } = useRouteSearch(search)
+  const [toast, showToast] = useToast()
 
   if (!search) return <Navigate to="/" replace />
 
-  const routeLabel = `${search.origin.name} → ${search.destination.name}`
-  const departLabel = search.departure === 'now' ? '지금 출발' : `오늘 ${fromMinutes(dep)} 출발`
+  const departLabel = data?.departure
+    ? search.departure === 'now'
+      ? `지금(${data.departure}) 출발`
+      : `${data.departure} 출발`
+    : search.departure === 'now'
+      ? '지금 출발'
+      : `${search.departure} 출발`
 
-  function showToast(message) {
-    setToast(message)
-    clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(''), 2000)
-  }
+  const options = data?.options ?? []
+  const canRide = options.some((o) => o.available && o.kind !== 'taxi')
+  const cut = data?.lastService?.regularCut ? data.lastService.regularLastDeparture : null
+  const backToInput = () => navigate('/', { state: { edit: true } })
 
   async function handleShare() {
-    const best = options[0]
-    const text = `${routeLabel} · ${departLabel}\n${best.badge} ${formatFareRange(
-      best.fareMin,
-      best.fareMax,
-    )}${best.arrival ? ` · ${best.arrival} 도착` : ''}\n— MOVA`
-
+    const best = options.find((o) => o.recommended) ?? options.find((o) => o.available)
+    if (!best) return
+    const text = `${search.origin.label} → ${search.destination.label} · ${departLabel}\n${
+      best.badges[0].text
+    } ${formatFareRange(best.fareMin, best.fareMax)} · ${best.arrival} 도착\n— MOVA`
     try {
       if (navigator.share) {
         await navigator.share({ title: 'MOVA 경로', text })
@@ -63,8 +80,8 @@ export default function ResultPage() {
         title="경로 비교"
         tone="canvas"
         wide
-        onBack={() => navigate('/', { state: { edit: true } })}
-        action={{ label: '공유', onClick: handleShare }}
+        onBack={backToInput}
+        action={status === 'ready' ? { label: '공유', onClick: handleShare } : undefined}
       />
 
       {/* data-layout="wide": 데스크톱에서 넓은 레이아웃 사용 (index.css) */}
@@ -72,35 +89,76 @@ export default function ResultPage() {
         <section className={styles.summary} aria-label="검색 조건">
           <p className={`${styles.summaryText} t-label-medium`}>
             <span className={styles.route}>
-              {search.origin.name}
+              {search.origin.label}
               <Icon name="arrow-right" size={14} label="에서" />
-              {search.destination.name}
+              {search.destination.label}
             </span>
             <span>{departLabel}</span>
           </p>
-          <button
-            type="button"
-            className={`${styles.edit} t-label-medium`}
-            onClick={() => navigate('/', { state: { edit: true } })}
-          >
+          <button type="button" className={`${styles.edit} t-label-medium`} onClick={backToInput}>
             수정
           </button>
         </section>
 
-        <p className={`${styles.caption} t-caption`}>추천순 · 금액은 100원 단위로 반올림했어요</p>
+        {status === 'loading' && (
+          // 명세 S2: 계산 중에는 카드 자리에 로딩 표시
+          <div className={styles.cards} aria-busy="true" aria-live="polite">
+            <p className={`${styles.caption} ${styles.full} t-caption`}>
+              {slow
+                ? '처음 검색은 1분 가까이 걸릴 수 있어요. 조금만 기다려 주세요'
+                : '경로를 찾는 중이에요'}
+            </p>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className={styles.skeleton} style={{ '--i': i }}>
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+            ))}
+          </div>
+        )}
 
-        <div className={styles.cards}>
-          {options.map((option, i) => (
-            <RouteCard
-              key={option.id}
-              option={option}
-              index={i}
-              highlighted={i === 0 && option.available}
-              onDetail={() => navigate(`/result/${option.id}`, { state: search })}
-              onAlternative={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            />
-          ))}
-        </div>
+        {status === 'error' && (
+          <section className={styles.error} role="alert">
+            <p className="t-heading-medium">경로를 찾지 못했어요</p>
+            <p className={`${styles.caption} t-body-small`}>{error.message}</p>
+            <Button variant="secondary" className={styles.raised} onClick={retry}>
+              다시 찾기
+            </Button>
+          </section>
+        )}
+
+        {status === 'ready' && (
+          <>
+            {/* 서버 last_service: 일반 막차가 이미 끊긴 시각이면 알려 줌 */}
+            {cut && canRide && (
+              <p className={`${styles.banner} t-body-small`}>
+                지하철·일반버스 막차({cut})가 지나서 심야버스와 택시로 안내해요
+              </p>
+            )}
+            {/* 명세 오류 처리: 대중교통으로 갈 수 있는 안이 없음 */}
+            {!canRide && (
+              <p className={`${styles.banner} t-body-small`}>지금은 택시가 가장 나아요</p>
+            )}
+
+            <p className={`${styles.caption} t-caption`}>
+              추천순 · 금액은 100원 단위로 반올림했어요
+            </p>
+
+            <div className={styles.cards}>
+              {options.map((option, i) => (
+                <RouteCard
+                  key={option.id}
+                  option={option}
+                  index={i}
+                  onDetail={() => navigate(`/result/${option.id}`, { state: search })}
+                  onAlternative={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
         {/* 데스크톱: 안내 문구(왼쪽)와 모임 버튼(오른쪽)을 한 줄로. 모바일에서는 기존처럼 버튼 → 문구 */}
         <div className={styles.bottom}>
@@ -113,16 +171,12 @@ export default function ResultPage() {
           </Button>
 
           <p className={`${styles.caption} ${styles.notice} t-caption`}>
-            시간표 기준일 {TIMETABLE_DATE} · 실제 운행 여부는 운영사에서 확인하세요
+            {dataAsOfText(data?.dataAsOf)}
           </p>
         </div>
       </div>
 
-      <div className={styles.toastArea} aria-live="polite">
-        <Reveal show={Boolean(toast)} variant="slide-up">
-          <p className={`${styles.toast} t-body-medium-strong`}>{toast}</p>
-        </Reveal>
-      </div>
+      <Toast message={toast} />
     </div>
   )
 }
