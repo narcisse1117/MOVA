@@ -17,9 +17,13 @@ export class ApiError extends Error {
 
 /**
  * @param {string} path '/api/routes' 처럼
- * @param {{method?: string, body?: object, timeoutMs?: number, signal?: AbortSignal}} options
+ * @param {{method?: string, body?: object, token?: string, timeoutMs?: number, signal?: AbortSignal}} options
+ *   token: 모임 관리·참여자 토큰 → Authorization: Bearer 헤더 (server/README.md)
  */
-export async function request(path, { method = 'GET', body, timeoutMs = 60000, signal } = {}) {
+export async function request(
+  path,
+  { method = 'GET', body, token, timeoutMs = 60000, signal } = {},
+) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   signal?.addEventListener('abort', () => controller.abort())
@@ -28,7 +32,10 @@ export async function request(path, { method = 'GET', body, timeoutMs = 60000, s
   try {
     res = await fetch(`${API_BASE}${path}`, {
       method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: {
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     })
@@ -53,6 +60,10 @@ export async function request(path, { method = 'GET', body, timeoutMs = 60000, s
         : '검색이 많아서 잠시 쉬어야 해요. 조금 뒤에 다시 시도해 주세요',
       { status: 429, retryAfterSec },
     )
+  }
+  if (res.status === 410) {
+    // README: 끝난(만료된) 모임에 참여하면 410
+    throw new ApiError('끝났거나 없는 모임이에요', { status: 410 })
   }
   if (!res.ok) {
     throw new ApiError(

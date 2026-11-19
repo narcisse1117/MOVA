@@ -124,3 +124,48 @@ export async function mockRoutes(body) {
   await wait(900)
   return structuredClone(body.departure_time === 'now' ? routesLive : routesNight)
 }
+
+const randomId = (n) =>
+  Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) =>
+    'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'.charAt(b % 56),
+  ).join('')
+
+/** 서울 시각 ISO ('2026-11-19T23:00:00+09:00') */
+function seoulIso(date) {
+  const s = new Date(date.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 19)
+  return `${s}+09:00`
+}
+
+/** POST /api/groups 예시 응답 (README 모양) */
+export async function mockCreateGroup(body) {
+  await wait(500)
+  const id = randomId(16)
+  const now = new Date()
+  // README: "23:40"처럼 시:분만 오면 오늘 밤 기준, 03시 전은 다음 날 새벽
+  let departure = seoulIso(now)
+  const hm = /^(\d{2}):(\d{2})$/.exec(body.departure_time ?? '')
+  if (hm) {
+    const day = seoulIso(now).slice(0, 10)
+    const next = Number(hm[1]) < 3 ? seoulIso(new Date(now.getTime() + 24 * 3600 * 1000)).slice(0, 10) : day
+    departure = `${next}T${hm[1]}:${hm[2]}:00+09:00`
+  }
+  return {
+    id,
+    share_path: `/g/${id}`,
+    admin_token: `adm_${randomId(24)}`,
+    departure,
+    expires_at: seoulIso(new Date(now.getTime() + 24 * 3600 * 1000)),
+    name: body.name ?? null,
+  }
+}
+
+/** POST /api/groups/{id}/members 예시 응답 */
+export async function mockJoinGroup(groupId, body) {
+  await wait(400)
+  return {
+    id: `m_${randomId(8)}`,
+    nickname: body.nickname,
+    member_token: `mem_${randomId(24)}`,
+    area: `${body.home.label} 근처`,
+  }
+}

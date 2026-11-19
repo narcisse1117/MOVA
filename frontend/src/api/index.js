@@ -1,6 +1,6 @@
 // 화면에서 부르는 API 함수 모음 (server/README.md 기준)
 import { USE_MOCK, request } from './client.js'
-import { mockGeocode, mockReverse, mockRoutes } from './mock.js'
+import { mockCreateGroup, mockGeocode, mockJoinGroup, mockReverse, mockRoutes } from './mock.js'
 import { getDeviceId } from '../utils/storage.js'
 
 export { ApiError, USE_MOCK } from './client.js'
@@ -40,4 +40,38 @@ export function sendEvent(name, { optionKind, area } = {}) {
     body: { device_id: getDeviceId(), name, option_kind: optionKind ?? null, area: area ?? null },
     timeoutMs: 5000,
   }).catch(() => ({ saved: false }))
+}
+
+const toPoint = (p) => ({ lat: p.lat, lng: p.lng, label: p.label })
+
+/**
+ * POST /api/groups — 모임 만들기
+ * @returns {{id, share_path, admin_token, departure, expires_at}}
+ *   admin_token은 만든 사람 브라우저에만 저장 (다시 받을 수 없음)
+ */
+export function createGroup({ name, meetingPlace, departure }) {
+  const body = {
+    name: name || undefined,
+    meeting_place: toPoint(meetingPlace),
+    departure_time: departure ?? 'now',
+  }
+  if (USE_MOCK) return mockCreateGroup(body)
+  return request('/api/groups', { method: 'POST', body, timeoutMs: 15000 })
+}
+
+/**
+ * POST /api/groups/{id}/members — 모임 참여 (닉네임, 집 좌표)
+ * 닉네임이 겹치면 서버가 '민수2'처럼 번호를 붙여 돌려준다.
+ * 만든 사람이 다른 사람을 대신 넣을 때만 adminToken을 보낸다 (by_admin: true)
+ * @returns {{id, nickname, member_token, area}}
+ */
+export function joinGroup(groupId, { nickname, home }, { adminToken } = {}) {
+  const body = { nickname, home: toPoint(home), ...(adminToken ? { by_admin: true } : {}) }
+  if (USE_MOCK) return mockJoinGroup(groupId, body)
+  return request(`/api/groups/${encodeURIComponent(groupId)}/members`, {
+    method: 'POST',
+    body,
+    token: adminToken,
+    timeoutMs: 15000,
+  })
 }

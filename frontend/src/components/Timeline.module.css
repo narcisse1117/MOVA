@@ -61,22 +61,6 @@
   color: var(--text-secondary);
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: var(--radius-segment);
-  background: var(--surface-subtle);
-  color: var(--text-strong);
-  transition: background-color var(--motion-fast) var(--ease-standard);
-}
-
-.chip:hover {
-  background: var(--surface-muted);
-}
-
 .warning {
   display: flex;
   align-items: center;

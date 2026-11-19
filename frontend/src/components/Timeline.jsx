@@ -16,12 +16,11 @@ function withArrows(text) {
 
 /**
  * S3 구간 타임라인
- * @param {{time, title, mode?, desc?, note?, action?, warning?, missed?}[]} steps api/adapt.js의 buildTimeline 결과
- * @param {() => void} onKakao '카카오 T로 부르기' 눌렀을 때
+ * @param {{time, title, mode?, desc?, note?, warning?, missed?}[]} steps api/adapt.js의 buildTimeline 결과
  * @param {() => void} [onAlternative] '대안 경로 보기' 눌렀을 때. 없으면 링크를 숨김
  *   (서버 fallback_taxi에는 요금만 있고 대안 경로가 없어서 지금은 넘기지 않음)
  */
-export default function Timeline({ steps, onKakao, onAlternative }) {
+export default function Timeline({ steps, onAlternative }) {
   return (
     <ol className={styles.timeline} aria-label="구간 타임라인">
       {steps.map((step, i) => (
@@ -42,13 +41,6 @@ export default function Timeline({ steps, onKakao, onAlternative }) {
                 <Badge tone="primary">실시간</Badge>
                 <p className="t-caption">{step.note.replace(/^실시간 · /, '')}</p>
               </div>
-            )}
-
-            {step.action === 'kakao' && (
-              <button type="button" className={`${styles.chip} t-label-medium`} onClick={onKakao}>
-                카카오 T로 부르기
-                <Icon name="chevron-right" size={14} />
-              </button>
             )}
 
             {step.warning && (

@@ -101,3 +101,41 @@ export function getDeviceId() {
     return 'd_unknown'
   }
 }
+
+// 모임 토큰 — 관리 토큰(만든 사람)·참여자 토큰을 모임별로 이 브라우저에만 둔다 (README, 명세 F3-03·F3-05)
+// 모임이 끝나면 clearGroup으로 지운다
+const GROUPS_KEY = 'mova:groups'
+
+function readGroups() {
+  try {
+    return JSON.parse(localStorage.getItem(GROUPS_KEY) ?? '{}') ?? {}
+  } catch {
+    return {}
+  }
+}
+
+/** @returns {{adminToken?, memberId?, memberToken?, nickname?, expiresAt?} | null} */
+export function loadGroup(groupId) {
+  return readGroups()[groupId] ?? null
+}
+
+export function saveGroup(groupId, patch) {
+  try {
+    const all = readGroups()
+    all[groupId] = { ...all[groupId], ...patch }
+    localStorage.setItem(GROUPS_KEY, JSON.stringify(all))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function clearGroup(groupId) {
+  try {
+    const all = readGroups()
+    delete all[groupId]
+    localStorage.setItem(GROUPS_KEY, JSON.stringify(all))
+  } catch {
+    // 저장소가 막혀 있으면 지울 것도 없음
+  }
+}

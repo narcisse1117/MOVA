@@ -87,14 +87,6 @@ export default function DetailPage() {
     sendEvent('select_option', { optionKind: option.kind })
   }
 
-  function handleKakao() {
-    choose()
-    sendEvent('open_call_app', { optionKind: option.kind })
-    // TODO(명세 F1-14, 미정 사항): 카카오 T에 택시 탈 지점·도착지를 넘기는 링크 방식이 정해지면 연결
-    // 서버 택시 구간에 좌표가 없어서 탈 지점 좌표 추가도 필요
-    showToast('카카오 T 연결은 준비 중이에요')
-  }
-
   function handleChoose() {
     choose()
     showToast('이 경로를 저장했어요')
@@ -170,8 +162,6 @@ export default function DetailPage() {
               <Button variant="secondary" className={styles.raised} onClick={backToResult}>
                 다른 안 보기
               </Button>
-            ) : option.hasTaxi ? (
-              <Button onClick={handleKakao}>카카오 T로 택시 부르기</Button>
             ) : (
               // 명세 S3: '이렇게 갈게요' → 선택 기록
               <Button onClick={handleChoose}>이렇게 갈게요</Button>
@@ -183,7 +173,7 @@ export default function DetailPage() {
 
         {steps.length > 0 && (
           <div className={styles.timeline}>
-            <Timeline steps={steps} onKakao={handleKakao} />
+            <Timeline steps={steps} />
           </div>
         )}
       </div>
