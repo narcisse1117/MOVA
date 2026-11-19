@@ -48,3 +48,9 @@
 .sub {
   color: var(--text-tertiary);
 }
+
+/* 찾는 중 / 결과 없음 / 서버 안내 문구 */
+.status {
+  padding: 10px 12px;
+  color: var(--text-tertiary);
+}
