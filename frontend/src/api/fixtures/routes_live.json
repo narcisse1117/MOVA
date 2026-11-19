@@ -1,0 +1,144 @@
+{
+  "service_day": "2026-11-08",
+  "day_type": "HOL",
+  "departure": "2026-11-08T14:51:00+09:00",
+  "live": true,
+  "options": [
+    {
+      "kind": "taxi",
+      "arrival": "2026-11-08T15:51:34+09:00",
+      "duration_min": 60,
+      "fare": 20100,
+      "rides": 0,
+      "fare_detail": {
+        "transit": 0,
+        "taxi": 20100
+      },
+      "fare_range": [
+        18500,
+        21700
+      ],
+      "recommended": false,
+      "legs": [
+        {
+          "type": "taxi",
+          "from": "강남역",
+          "to": "수유역",
+          "departure": "2026-11-08T14:56:00+09:00",
+          "arrival": "2026-11-08T15:51:34+09:00",
+          "wait_sec": 300,
+          "drive_sec": 3334,
+          "distance_m": 20868,
+          "fare": 20100,
+          "fare_range": [
+            18500,
+            21700
+          ],
+          "source": "naver_live",
+          "estimated": false
+        }
+      ]
+    },
+    {
+      "kind": "transit",
+      "arrival": "2026-11-08T16:16:21+09:00",
+      "duration_min": 85,
+      "fare": 1800,
+      "rides": 1,
+      "fare_detail": {
+        "transit": 1800,
+        "taxi": 0
+      },
+      "recommended": false,
+      "combo_kind": null,
+      "legs": [
+        {
+          "type": "walk",
+          "from": "출발지",
+          "to": "신분당선강남역",
+          "duration_sec": 419
+        },
+        {
+          "type": "bus",
+          "from": "신분당선강남역",
+          "to": "수유역.강북구청",
+          "line": "140",
+          "trip": "기점 12:56 출발",
+          "departure": "2026-11-08T15:07:24+09:00",
+          "arrival": "2026-11-08T16:15:06+09:00",
+          "stops": 25,
+          "headway_min": 11.0,
+          "realtime": {
+            "status": "earlier",
+            "arrive_in_sec": 782,
+            "realtime_dep": "2026-11-08T15:04:09+09:00",
+            "delay_sec": -195,
+            "is_last": false,
+            "message": "13분2초후[5번째 전]",
+            "plate": "서울71사1869"
+          },
+          "distance_m": 20617
+        },
+        {
+          "type": "walk",
+          "from": "수유역.강북구청",
+          "to": "도착지",
+          "duration_sec": 75
+        }
+      ]
+    },
+    {
+      "kind": "transit",
+      "arrival": "2026-11-08T15:50:57+09:00",
+      "duration_min": 59,
+      "fare": 1950,
+      "rides": 2,
+      "fare_detail": {
+        "transit": 1950,
+        "taxi": 0
+      },
+      "recommended": false,
+      "combo_kind": null,
+      "legs": [
+        {
+          "type": "walk",
+          "from": "출발지",
+          "to": "강남",
+          "duration_sec": 157
+        },
+        {
+          "type": "subway",
+          "from": "강남",
+          "to": "사당",
+          "line": "2호선",
+          "trip": "2240 성수행",
+          "departure": "2026-11-08T14:55:00+09:00",
+          "arrival": "2026-11-08T15:04:00+09:00",
+          "stops": 4,
+          "distance_m": 5697
+        },
+        {
+          "type": "subway",
+          "from": "사당",
+          "to": "수유(강북구청)",
+          "line": "4호선",
+          "trip": "4600 불암산행",
+          "departure": "2026-11-08T15:07:00+09:00",
+          "arrival": "2026-11-08T15:48:00+09:00",
+          "stops": 19,
+          "distance_m": 22035
+        },
+        {
+          "type": "walk",
+          "from": "수유(강북구청)",
+          "to": "도착지",
+          "duration_sec": 177
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "택시 구간의 source: naver_live(네이버 실시간 경로), naver(네이버 경로 거리 + 심야 속도), estimate(직선거리 추정)",
+    "버스는 막차·첫차만 공식 시각이고 그 사이는 배차 간격 기반 추정입니다"
+  ]
+}

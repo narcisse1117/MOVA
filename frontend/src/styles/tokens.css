@@ -17,10 +17,28 @@
   --surface-muted: #dde1ee;
   --surface-translucent: rgba(255, 255, 255, 0.6);
 
-  /* 이동 수단 (Leg bar) */
+  /* 이동 수단 — 구간 막대·타임라인 세로선 공통 (data/modes.js와 짝)
+     택시·2호선·4호선은 Figma 값, 나머지는 서울 지하철·버스 노선 대표색 */
   --mode-taxi: #ff8d28;
+  --mode-bus: #0068b7;
+  --mode-line1: #0052a4;
   --mode-line2: #34c759;
+  --mode-line3: #ef7c1c;
   --mode-line4: #00c0e8;
+  --mode-line5: #996cac;
+  --mode-line6: #cd7c2f;
+  --mode-line7: #747f00;
+  --mode-line8: #e6186c;
+  --mode-line9: #bdb092;
+  --mode-nightbus: #3a3f6b;
+  --mode-subway: #7a8199;
+  --mode-shinbundang: #d4003b;
+  --mode-suinbundang: #f5a200;
+  --mode-gyeongui: #77c4a3;
+  --mode-airport: #0090d2;
+  --mode-gyeongchun: #0c8e72;
+  --mode-uisinseol: #b0ce18;
+  --mode-sillim: #6789ca;
   --mode-walk: var(--surface-muted);
   --mode-none: var(--surface-subtle);
 
