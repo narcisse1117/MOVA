@@ -42,7 +42,8 @@ export default function PlaceField({
       async ({ coords }) => {
         try {
           const res = await reverse(coords.latitude, coords.longitude)
-          const text = `현재 위치 · ${res.label}`
+          // 서버가 이름을 못 붙이면(네이버 키 없음 등 label: null) '현재 위치'만
+          const text = res.label ? `현재 위치 · ${res.label}` : '현재 위치'
           onChange({
             text,
             place: {
@@ -50,7 +51,7 @@ export default function PlaceField({
               kind: 'current',
               label: text,
               name: text,
-              region: res.label,
+              region: res.label ?? '',
               lat: coords.latitude,
               lng: coords.longitude,
             },
