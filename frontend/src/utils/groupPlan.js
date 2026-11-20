@@ -54,6 +54,8 @@ function taxiBundle(group, index, meetingLabel, leaveAt, myId) {
         ? `1인 약 ${won(round100(group.total_fare / n))} (총 ${won(group.total_fare)})`
         : `약 ${won(group.total_fare)}`,
     estimated: group.estimated,
+    // 내 경로 화면(/g/:groupId/route)에 넘길 원래 데이터
+    detail: { kind: 'taxi', group },
   }
 }
 
@@ -76,6 +78,7 @@ function soloBundle(member, leaveAt, myId) {
       route: '지하철·버스와 심야버스가 모두 끊겨요',
       legs: [],
       price: '',
+      detail: null,
     }
   }
   const legs = usable.route?.legs ?? []
@@ -90,6 +93,13 @@ function soloBundle(member, leaveAt, myId) {
       .map((l) => ({ mode: legMode(l), label: legLabel(l), minutes: legMinutes(l) })),
     price: usable.route?.fare != null ? `1인 ${won(usable.route.fare)}` : '',
     warning: usable === regular ? regular.extra_if_late?.message : null,
+    detail: {
+      kind: 'solo',
+      route: usable.route,
+      leaveBy: usable.leave_by,
+      night: usable === night,
+      extra: usable === regular ? regular.extra_if_late?.message : null,
+    },
   }
 }
 

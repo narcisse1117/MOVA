@@ -11,7 +11,7 @@ import { useGroup } from '../hooks/useGroup.js'
 import { useToast } from '../hooks/useToast.js'
 import { copyText, shareOrCopy } from '../utils/clipboard.js'
 import { buildBundles, buildTransfers } from '../utils/groupPlan.js'
-import { loadGroup, saveGroup, saveSearch } from '../utils/storage.js'
+import { loadGroup, saveGroup, saveGroupRoute } from '../utils/storage.js'
 import { seoulLocal } from '../utils/time.js'
 import GroupGoneScreen from './GroupGoneScreen.jsx'
 import styles from './GroupResultPage.module.css'
@@ -19,17 +19,6 @@ import styles from './GroupResultPage.module.css'
 const isGone = (err) => err?.status === 404 || err?.status === 410
 const clock = (ms) =>
   new Date(ms).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
-
-/** 서버 좌표 {lat, lng, label} → S1·S2가 쓰는 장소 모양 */
-const toPlace = (p, id) => ({
-  id,
-  kind: 'place',
-  label: p.label,
-  name: p.label,
-  lat: p.lat,
-  lng: p.lng,
-  inSeoul: true,
-})
 
 /**
  * S6 모임 결과 /g/:groupId (와이어프레임 S6 · S6-b, 이 기기가 참여한 모임)
@@ -106,16 +95,20 @@ export default function GroupResultPage({ groupId, onLeft, onGone }) {
     showToast((await copyText(text)) ? message : '복사하지 못했어요. 길게 눌러 복사해 주세요')
   }
 
-  // 내 묶음 '경로 보기': 서버가 본인에게만 주는 home으로 S2(경로 검색)를 연다
-  function openMyRoute() {
-    if (!me?.home || !group) return
-    const search = {
-      origin: toPlace(group.meeting_place, 'group-meeting'),
-      destination: toPlace(me.home, 'home'),
-      departure: leaveAt.slice(11, 16),
+  // 명세 S6: 내 카드 → 내 경로 S3. 다시 검색하지 않고 모임 응답(마감 경로·택시 묶음)으로 바로 그린다
+  function openMyRoute(bundle) {
+    if (!bundle.detail || !me) return
+    const payload = {
+      groupId,
+      groupName: group.name,
+      meeting: group.meeting_place,
+      homeLabel: me.home?.label ?? me.area,
+      leaveAt,
+      myId: me.id,
+      detail: bundle.detail,
     }
-    saveSearch(search)
-    navigate('/result', { state: search })
+    saveGroupRoute(payload)
+    navigate(`/g/${groupId}/route`, { state: payload })
   }
 
   return (
@@ -201,7 +194,7 @@ export default function GroupResultPage({ groupId, onLeft, onGone }) {
                       key={b.key}
                       bundle={b}
                       style={{ '--i': i }}
-                      onRoute={me?.home ? openMyRoute : undefined}
+                      onRoute={b.detail ? () => openMyRoute(b) : undefined}
                     />
                   ))}
                 </ul>
