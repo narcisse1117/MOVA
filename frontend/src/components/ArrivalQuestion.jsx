@@ -39,9 +39,17 @@ const QUICK = [
  *
  * @param chosen 고른 안 (utils/storage saveChosenOption 값)
  * @param {() => void} [onClose] 건너뛰기·닫기
+ * @param {() => void} [onSettledClose] 결과 화면(모임 재정산 등)의 '닫기' — 없으면 onClose
+ * @param {() => void} [onSubmitted] 택시비를 보낸 뒤 (주면 결과 화면 없이 바로 이 동작. 모임 재정산은 결과를 보여줘야 해서 해당 없음)
  * @param {boolean} [inline] 길안내 화면 안에 넣을 때 (제목에서 '어젯밤' 빼고, 자동 포커스 안 함)
  */
-export default function ArrivalQuestion({ chosen, onClose, inline = false }) {
+export default function ArrivalQuestion({
+  chosen,
+  onClose,
+  onSubmitted,
+  onSettledClose,
+  inline = false,
+}) {
   const [fare, setFare] = useState('')
   const [quick, setQuick] = useState(null)
   const [error, setError] = useState('')
@@ -114,6 +122,10 @@ export default function ArrivalQuestion({ chosen, onClose, inline = false }) {
       chosen.optionKind === 'taxi' || chosen.savingVsTaxi == null
         ? 0
         : round100(taxiDirectMid - actualTotal)
+    if (onSubmitted) {
+      onSubmitted({ saving, withinRange: res?.within_range ?? null })
+      return
+    }
     setResult({ saving, withinRange: res?.within_range ?? null })
     setStep('done')
   }
@@ -228,7 +240,11 @@ export default function ArrivalQuestion({ chosen, onClose, inline = false }) {
           <Button onClick={copySettle}>
             {copied ? '복사했어요. 단톡방에 붙여 넣어 주세요' : '정산 내용 복사해서 보내기'}
           </Button>
-          <button type="button" className={`${styles.skip} t-body-small`} onClick={close}>
+          <button
+            type="button"
+            className={`${styles.skip} t-body-small`}
+            onClick={onSettledClose ?? close}
+          >
             닫기
           </button>
         </div>
@@ -243,7 +259,11 @@ export default function ArrivalQuestion({ chosen, onClose, inline = false }) {
             {result.saving > 0 && '택시만 탔을 때(예상 가운데 값)와 비교한 금액이에요'}
           </p>
           {shareButton}
-          <button type="button" className={`${styles.skip} t-body-small`} onClick={close}>
+          <button
+            type="button"
+            className={`${styles.skip} t-body-small`}
+            onClick={onSettledClose ?? close}
+          >
             닫기
           </button>
         </div>

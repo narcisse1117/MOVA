@@ -214,7 +214,24 @@ export default function GuidePage() {
 
           {arrived && askable && (
             <section className={styles.ask}>
-              <ArrivalQuestion chosen={chosen} inline onClose={end} />
+              <ArrivalQuestion
+                chosen={chosen}
+                inline
+                onClose={() => {
+                  // 건너뛰기도 길안내를 끝내고 메인(S1)으로
+                  clearGuide()
+                  navigate('/')
+                }}
+                onSubmitted={() => {
+                  // 택시비를 보낸 뒤에는 길안내를 끝내고 메인(S1)으로
+                  clearGuide()
+                  navigate('/')
+                }}
+                onSettledClose={() => {
+                  clearGuide()
+                  navigate('/')
+                }}
+              />
             </section>
           )}
 

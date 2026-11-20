@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { getSessionId, loadChosenOption, markChosenAsked } from '../utils/storage.js'
 import ArrivalQuestion from './ArrivalQuestion.jsx'
 import Reveal from './Reveal.jsx'
@@ -26,6 +26,7 @@ function shouldAsk(chosen, now = Date.now()) {
  */
 export default function FeedbackPrompt() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const [chosen, setChosen] = useState(null)
   const [open, setOpen] = useState(true)
   const onGuide = pathname === '/guide'
@@ -57,7 +58,19 @@ export default function FeedbackPrompt() {
           onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
         >
           <span className={styles.handle} aria-hidden="true" />
-          <ArrivalQuestion chosen={chosen} onClose={() => setOpen(false)} />
+          <ArrivalQuestion
+            chosen={chosen}
+            onClose={() => {
+              // 건너뛰기도 팝업을 닫고 메인(S1)으로
+              setOpen(false)
+              navigate('/')
+            }}
+            onSubmitted={() => {
+              // 택시비를 보낸 뒤에는 팝업을 닫고 메인(S1)으로
+              setOpen(false)
+              navigate('/')
+            }}
+          />
         </section>
       </div>
     </Reveal>
