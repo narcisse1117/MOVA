@@ -11,6 +11,12 @@ export function loadHome() {
   }
 }
 
+/** 좌표까지 있는 저장된 집만 (예전 형식으로 저장된 집은 쓰지 않음). 모임 화면의 집 주소 기본값 */
+export function loadHomePlace() {
+  const home = loadHome()
+  return home && home.lat != null && home.label ? home : null
+}
+
 export function saveHome(place) {
   try {
     const rest = { ...place }

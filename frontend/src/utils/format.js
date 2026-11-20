@@ -18,3 +18,10 @@ export function formatFareRange(min, max) {
   const hi = round100(max)
   return `${lo.toLocaleString('ko-KR')} ~ ${hi.toLocaleString('ko-KR')}원`
 }
+
+/** '2026-11-20T23:00:00+09:00' → '11월 20일 23:00' (서버가 주는 서울 시각 문자열 그대로) */
+export function formatDateTime(iso) {
+  if (!iso) return ''
+  const [, m, d] = iso.slice(0, 10).split('-')
+  return `${Number(m)}월 ${Number(d)}일 ${iso.slice(11, 16)}`
+}

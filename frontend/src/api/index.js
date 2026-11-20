@@ -1,6 +1,13 @@
 // 화면에서 부르는 API 함수 모음 (server/README.md 기준)
 import { USE_MOCK, request } from './client.js'
-import { mockCreateGroup, mockGeocode, mockJoinGroup, mockReverse, mockRoutes } from './mock.js'
+import {
+  mockCreateGroup,
+  mockGeocode,
+  mockGetGroup,
+  mockJoinGroup,
+  mockReverse,
+  mockRoutes,
+} from './mock.js'
 import { getDeviceId } from '../utils/storage.js'
 
 export { ApiError, USE_MOCK } from './client.js'
@@ -57,6 +64,17 @@ export function createGroup({ name, meetingPlace, departure }) {
   }
   if (USE_MOCK) return mockCreateGroup(body)
   return request('/api/groups', { method: 'POST', body, timeoutMs: 15000 })
+}
+
+/**
+ * GET /api/groups/{id} — 모임 상태 (이름, 출발 장소·시각, 참여자)
+ * 토큰을 보내면 is_admin / is_me가 채워진다. 다른 사람의 집 주소는 오지 않는다.
+ * 무거운 요청(분당 20번)이라 필요할 때만 부른다.
+ * @returns {{id, name, status: 'ready'|'expired', version, is_admin, departure, expires_at, meeting_place, members}}
+ */
+export function getGroup(groupId, { token, signal } = {}) {
+  if (USE_MOCK) return mockGetGroup(groupId)
+  return request(`/api/groups/${encodeURIComponent(groupId)}`, { token, signal, timeoutMs: 15000 })
 }
 
 /**
