@@ -16,7 +16,7 @@ function withArrows(text) {
 
 /**
  * S3 구간 타임라인
- * @param {{time, title, mode?, desc?, note?, warning?, missed?}[]} steps api/adapt.js의 buildTimeline 결과
+ * @param {{time, title, mode?, desc?, note?, now?, warning?, missed?}[]} steps api/adapt.js의 buildTimeline 결과
  * @param {() => void} [onAlternative] '대안 경로 보기' 눌렀을 때. 없으면 링크를 숨김
  *   (서버 fallback_taxi에는 요금만 있고 대안 경로가 없어서 지금은 넘기지 않음)
  */
@@ -34,6 +34,14 @@ export default function Timeline({ steps, onAlternative }) {
           >
             <p className={styles.title}>{withArrows(step.title)}</p>
             {step.desc && <p className={`${styles.desc} t-body-small`}>{step.desc}</p>}
+
+            {/* 길안내: 지금 하고 있는 단계 */}
+            {step.now && (
+              <div className={styles.note}>
+                <Badge tone="primary">지금</Badge>
+                <p className="t-caption">{step.now}</p>
+              </div>
+            )}
 
             {/* 지금 출발이면 첫 탈것의 실시간 도착 (서버 realtime.message) */}
             {step.note && (

@@ -119,6 +119,44 @@ export function loadGroupRoute() {
   }
 }
 
+// 길안내 — '이렇게 갈게요'로 고른 경로를 따라감. 브라우저를 다시 켜도 이어지게 localStorage
+const GUIDE_KEY = 'mova:guide'
+
+export function saveGuide(guide) {
+  try {
+    localStorage.setItem(GUIDE_KEY, JSON.stringify({ ...guide, startedAt: Date.now() }))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function loadGuide() {
+  try {
+    return JSON.parse(localStorage.getItem(GUIDE_KEY) ?? 'null')
+  } catch {
+    return null
+  }
+}
+
+export function updateGuide(patch) {
+  const guide = loadGuide()
+  if (!guide) return
+  try {
+    localStorage.setItem(GUIDE_KEY, JSON.stringify({ ...guide, ...patch }))
+  } catch {
+    // 저장이 막혀 있으면 이번 화면에서만
+  }
+}
+
+export function clearGuide() {
+  try {
+    localStorage.removeItem(GUIDE_KEY)
+  } catch {
+    // 지울 것도 없음
+  }
+}
+
 // 경로 검색 결과(/api/routes 응답) — S2·S3 새로고침 대비. 서버에 다시 불러오는 API가 없어서 이 탭에만 둔다
 const RESULT_KEY = 'mova:lastResult'
 

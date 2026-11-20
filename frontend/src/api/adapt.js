@@ -151,7 +151,8 @@ export function adaptRoutes(res) {
 /**
  * S3 타임라인 단계 만들기 — 실제 구간(legs)에서 자동으로
  * 단계: [출발(도보로 시작할 때)] → 탑승 → (하차 → 환승 → 탑승)… → 하차 → 도착
- * 각 단계: { time, title, mode?, desc?, note?, warning?, missed? }
+ * 각 단계: { time, title, mode?, desc?, note?, warning?, missed?, leg?, beforeLeg? }
+ *   leg: 타는 단계의 구간 번호(legs 기준), beforeLeg: 그 구간을 타기 전 단계(출발·환승) — 길안내에서 '지금' 표시용
  * mode가 있는 단계(타는 구간)는 세로선이 그 수단 색으로 칠해진다.
  */
 export function buildTimeline(option, search, departureIso) {
@@ -176,6 +177,7 @@ export function buildTimeline(option, search, departureIso) {
       time: hhmm(departureIso),
       title: `${search.origin.label} 출발`,
       desc: `${name(legs[rides[0]].from)}까지 도보 ${Math.round(leading)}분`,
+      beforeLeg: rides[0],
     })
   }
 
@@ -198,6 +200,7 @@ export function buildTimeline(option, search, departureIso) {
               : `${name(leg.from)}까지 도보 약 ${between}분`
             : undefined,
         warning: tight ? `${tight.message} · 빠듯해요` : null,
+        beforeLeg: r,
       })
     }
 
@@ -233,6 +236,7 @@ export function buildTimeline(option, search, departureIso) {
       title,
       desc,
       mode: isRide(mode) ? mode : undefined,
+      leg: r,
       // 실시간(live) 정보는 첫 탈것에만 붙어 온다
       note: leg.realtime?.message ? `실시간 · ${leg.realtime.message}` : undefined,
       // 명세 F1-13: 놓쳤을 때 그 자리에서 택시를 타는 대안
