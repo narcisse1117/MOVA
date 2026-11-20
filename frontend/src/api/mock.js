@@ -1,5 +1,7 @@
 // 서버 없이 화면을 만들 때 쓰는 예시 응답 (server/examples/*.json을 그대로 가져옴)
 // VITE_API_BASE를 비워 두면 api/index.js가 이 파일을 쓴다.
+import { ApiError } from './client.js'
+import groupGet from './fixtures/group_get.json'
 import routesLive from './fixtures/routes_live.json'
 import routesNight from './fixtures/routes_night.json'
 
@@ -136,6 +138,30 @@ function seoulIso(date) {
   return `${s}+09:00`
 }
 
+// 이 브라우저에서 만든 모임을 서버 대신 기억 (새로고침해도 유지)
+const MOCK_GROUPS_KEY = 'mova:mockGroups'
+
+function readMockGroups() {
+  try {
+    return JSON.parse(localStorage.getItem(MOCK_GROUPS_KEY) ?? '{}') ?? {}
+  } catch {
+    return {}
+  }
+}
+
+function writeMockGroup(group) {
+  try {
+    localStorage.setItem(
+      MOCK_GROUPS_KEY,
+      JSON.stringify({ ...readMockGroups(), [group.id]: group }),
+    )
+  } catch {
+    // 저장이 막혀 있으면 이번 탭에서만 동작
+  }
+}
+
+const notFound = () => new ApiError('끝났거나 없는 모임이에요', { status: 404 })
+
 /** POST /api/groups 예시 응답 (README 모양) */
 export async function mockCreateGroup(body) {
   await wait(500)
@@ -146,26 +172,64 @@ export async function mockCreateGroup(body) {
   const hm = /^(\d{2}):(\d{2})$/.exec(body.departure_time ?? '')
   if (hm) {
     const day = seoulIso(now).slice(0, 10)
-    const next = Number(hm[1]) < 3 ? seoulIso(new Date(now.getTime() + 24 * 3600 * 1000)).slice(0, 10) : day
+    const next =
+      Number(hm[1]) < 3 ? seoulIso(new Date(now.getTime() + 24 * 3600 * 1000)).slice(0, 10) : day
     departure = `${next}T${hm[1]}:${hm[2]}:00+09:00`
   }
+  const expiresAt = seoulIso(new Date(now.getTime() + 24 * 3600 * 1000))
+  writeMockGroup({
+    id,
+    name: body.name ?? null,
+    meeting_place: body.meeting_place,
+    departure,
+    expires_at: expiresAt,
+    members: [],
+  })
   return {
     id,
     share_path: `/g/${id}`,
     admin_token: `adm_${randomId(24)}`,
     departure,
-    expires_at: seoulIso(new Date(now.getTime() + 24 * 3600 * 1000)),
+    expires_at: expiresAt,
     name: body.name ?? null,
+  }
+}
+
+/**
+ * GET /api/groups/{id} 예시 응답
+ * - 이 브라우저에서 만든 모임: 기억해 둔 값 (마감 시각 없이 이름·장소·참여자만)
+ * - EXAMPLEgroupID16: server/examples/group_get.json 그대로
+ */
+export async function mockGetGroup(groupId) {
+  await wait(400)
+  if (groupId === groupGet.id) return structuredClone(groupGet)
+  const group = readMockGroups()[groupId]
+  if (!group) throw notFound()
+  const expired = new Date(group.expires_at) < new Date()
+  return {
+    id: group.id,
+    name: group.name,
+    status: expired ? 'expired' : 'ready',
+    version: group.members.length + 1,
+    is_admin: false,
+    departure: group.departure,
+    expires_at: group.expires_at,
+    meeting_place: group.meeting_place,
+    members: expired
+      ? []
+      : group.members.map((m) => ({ id: m.id, nickname: m.nickname, area: m.area, is_me: false })),
   }
 }
 
 /** POST /api/groups/{id}/members 예시 응답 */
 export async function mockJoinGroup(groupId, body) {
   await wait(400)
-  return {
-    id: `m_${randomId(8)}`,
-    nickname: body.nickname,
-    member_token: `mem_${randomId(24)}`,
-    area: `${body.home.label} 근처`,
-  }
+  const group = readMockGroups()[groupId]
+  // README: 닉네임이 겹치면 '민수2'처럼 번호를 붙여 돌려준다
+  const taken = new Set(group?.members.map((m) => m.nickname) ?? [])
+  let nickname = body.nickname
+  for (let n = 2; taken.has(nickname); n += 1) nickname = `${body.nickname}${n}`
+  const member = { id: `m_${randomId(8)}`, nickname, area: `${body.home.label} 근처` }
+  if (group) writeMockGroup({ ...group, members: [...group.members, member] })
+  return { ...member, member_token: `mem_${randomId(24)}` }
 }
