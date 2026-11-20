@@ -131,18 +131,25 @@ export async function mockRoutes(body) {
   return shiftTimes(structuredClone(fixture), offset)
 }
 
-/** 'now' → 지금, 'HH:MM' → 오늘 밤 그 시각 (03시 전은 다음 날 새벽, 서버 규칙과 같음) */
+/**
+ * 'now' → 지금, 'HH:MM' → 그 시각 (server/app.py resolve_time과 같은 규칙)
+ * 지금의 운행일(03시 전이면 전날) 밤 기준이고, 03시 전은 그다음 날 새벽.
+ * 그래도 30분 넘게 지난 시각이면 하루 뒤로.
+ * 예: 00:14에 01:00 → 오늘 01:00 (46분 뒤), 21:00에 01:00 → 내일 01:00
+ */
 function mockDepartureMs(departureTime) {
   const now = Date.now()
-  const hm = /^(\d{2}):(\d{2})$/.exec(departureTime ?? '')
+  const hm = /^(\d{1,2}):(\d{2})$/.exec(departureTime ?? '')
   if (!hm) return now
+  const DAY = 24 * 3600 * 1000
+  const h = Number(hm[1])
   const nowKst = new Date(now + 9 * 3600 * 1000)
-  let day = nowKst.toISOString().slice(0, 10)
-  const late = Number(hm[1]) < 3
-  const pastMidnight = nowKst.getUTCHours() < 3
-  if (late && !pastMidnight) day = seoulIso(new Date(now + 24 * 3600 * 1000)).slice(0, 10)
-  if (!late && pastMidnight) day = seoulIso(new Date(now - 24 * 3600 * 1000)).slice(0, 10)
-  return new Date(`${day}T${hm[1]}:${hm[2]}:00+09:00`).getTime()
+  const base = nowKst.getUTCHours() >= 3 ? now : now - DAY // 지금의 운행일
+  const day = seoulIso(new Date(base)).slice(0, 10)
+  let t = new Date(`${day}T${String(h).padStart(2, '0')}:${hm[2]}:00+09:00`).getTime()
+  if (h < 3) t += DAY
+  if (t < now - 30 * 60 * 1000) t += DAY
+  return t
 }
 
 const randomId = (n) =>
@@ -283,15 +290,8 @@ export async function mockCreateGroup(body) {
   await wait(500)
   const id = randomId(16)
   const now = new Date()
-  // README: "23:40"처럼 시:분만 오면 오늘 밤 기준, 03시 전은 다음 날 새벽
-  let departure = seoulIso(now)
-  const hm = /^(\d{2}):(\d{2})$/.exec(body.departure_time ?? '')
-  if (hm) {
-    const day = seoulIso(now).slice(0, 10)
-    const next =
-      Number(hm[1]) < 3 ? seoulIso(new Date(now.getTime() + 24 * 3600 * 1000)).slice(0, 10) : day
-    departure = `${next}T${hm[1]}:${hm[2]}:00+09:00`
-  }
+  // README: "23:40"처럼 시:분만 오면 오늘 밤 기준, 03시 전은 다음 날 새벽 (지금이 새벽이면 오늘)
+  const departure = seoulIso(new Date(mockDepartureMs(body.departure_time)))
   const adminToken = `adm_${randomId(24)}`
   const expiresAt = seoulIso(new Date(now.getTime() + 24 * 3600 * 1000))
   writeMockGroup({
