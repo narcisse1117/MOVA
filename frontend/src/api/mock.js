@@ -124,7 +124,25 @@ export async function mockReverse() {
 /** 지금 출발이면 실시간 예시, 시각을 고르면 심야 예시 */
 export async function mockRoutes(body) {
   await wait(900)
-  return structuredClone(body.departure_time === 'now' ? routesLive : routesNight)
+  const fixture = body.departure_time === 'now' ? routesLive : routesNight
+  // 예시 응답의 시각은 지난 날짜라서, 고른 출발 시각(지금 / 오늘 밤 HH:MM)으로 모든 시각을 옮긴다
+  // (그대로 두면 길안내가 열리자마자 '도착'으로 보임)
+  const offset = mockDepartureMs(body.departure_time) - new Date(fixture.departure).getTime()
+  return shiftTimes(structuredClone(fixture), offset)
+}
+
+/** 'now' → 지금, 'HH:MM' → 오늘 밤 그 시각 (03시 전은 다음 날 새벽, 서버 규칙과 같음) */
+function mockDepartureMs(departureTime) {
+  const now = Date.now()
+  const hm = /^(\d{2}):(\d{2})$/.exec(departureTime ?? '')
+  if (!hm) return now
+  const nowKst = new Date(now + 9 * 3600 * 1000)
+  let day = nowKst.toISOString().slice(0, 10)
+  const late = Number(hm[1]) < 3
+  const pastMidnight = nowKst.getUTCHours() < 3
+  if (late && !pastMidnight) day = seoulIso(new Date(now + 24 * 3600 * 1000)).slice(0, 10)
+  if (!late && pastMidnight) day = seoulIso(new Date(now - 24 * 3600 * 1000)).slice(0, 10)
+  return new Date(`${day}T${hm[1]}:${hm[2]}:00+09:00`).getTime()
 }
 
 const randomId = (n) =>
