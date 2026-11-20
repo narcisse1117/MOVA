@@ -1,0 +1,71 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  color: var(--text-strong);
+}
+
+.list {
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: var(--radius-card-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.row + .row {
+  border-top: 1px solid var(--border-default);
+}
+
+.who {
+  flex: 1;
+  min-width: 0;
+}
+
+.me {
+  color: var(--primary-default);
+}
+
+.muted {
+  color: var(--text-tertiary);
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+}
+
+.link {
+  align-self: flex-start;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-segment);
+  background: transparent;
+  color: var(--primary-default);
+}
+
+.link:hover {
+  background: var(--primary-soft);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface-default);
+}
+
+.end {
+  align-self: flex-start;
+}

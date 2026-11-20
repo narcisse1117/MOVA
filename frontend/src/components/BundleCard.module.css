@@ -1,0 +1,50 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 16px 14px;
+  border-radius: var(--radius-card-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+  color: var(--text-strong);
+  list-style: none;
+}
+
+/* 내 묶음은 조금 더 떠 보이게 (와이어프레임 S6 첫 카드) */
+.mine {
+  box-shadow: var(--elevation-raised);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.muted {
+  color: var(--text-tertiary);
+}
+
+.route {
+  color: var(--text-secondary);
+}
+
+.price {
+  margin-top: 4px;
+}
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  align-self: flex-end;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+}
+
+.more:hover {
+  color: var(--text-strong);
+}

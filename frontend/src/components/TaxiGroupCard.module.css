@@ -1,0 +1,140 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+  border-top: 4px solid var(--mode-taxi);
+  color: var(--text-strong);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.total {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--text-tertiary);
+}
+
+.total .t-fare-s {
+  color: var(--text-strong);
+}
+
+.riders,
+.transfers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.order {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--mode-taxi);
+  color: #fff;
+}
+
+.riderBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.riderBody .t-body-medium-strong {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.me {
+  color: var(--primary-default);
+}
+
+.muted {
+  color: var(--text-tertiary);
+}
+
+.transfer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.transfer .t-body-small {
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.copy,
+.toggle {
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-segment);
+  background: var(--surface-default);
+  color: var(--primary-default);
+}
+
+.toggle {
+  align-self: flex-start;
+  padding: 6px 0;
+  background: transparent;
+}
+
+.raised {
+  background: var(--surface-subtle);
+}
+
+.settle {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input input {
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--surface-subtle);
+  outline: none;
+}
+
+.input input:focus {
+  border-color: var(--primary-default);
+  background: var(--surface-default);
+}
+
+.error {
+  color: #d23b3b;
+}

@@ -1,0 +1,120 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--text-strong);
+}
+
+.rule {
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  color: var(--text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 와이어프레임 S6 정산 카드: 이름 → 금액, 아래 버튼 */
+.transfer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 12px 12px;
+  border-radius: var(--radius-card-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.actions {
+  display: flex;
+}
+
+.actions button {
+  flex: 1;
+  height: 36px;
+  border: 0;
+  border-radius: var(--radius-segment);
+  background: var(--surface-subtle);
+  color: var(--text-strong);
+}
+
+.actions button:hover {
+  background: var(--surface-muted);
+}
+
+.muted {
+  color: var(--text-tertiary);
+}
+
+.empty {
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface-default);
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.actual {
+  display: flex;
+  flex-direction: column;
+}
+
+.actualHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.toggle {
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary-default);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 12px;
+  border-radius: var(--radius-card);
+  background: var(--surface-default);
+}
+
+.input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input input {
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--surface-subtle);
+  outline: none;
+}
+
+.input input:focus {
+  border-color: var(--primary-default);
+  background: var(--surface-default);
+}
+
+.error {
+  color: #d23b3b;
+}

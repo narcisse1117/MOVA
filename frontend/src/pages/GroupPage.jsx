@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { loadGroup } from '../utils/storage.js'
+import GroupGoneScreen from './GroupGoneScreen.jsx'
 import GroupJoinPage from './GroupJoinPage.jsx'
-import PlaceholderPage from './PlaceholderPage.jsx'
+import GroupResultPage from './GroupResultPage.jsx'
 
 /**
  * /g/:groupId — 모임 링크 하나로 S5·S6를 나눠 보여준다
@@ -15,9 +16,25 @@ export default function GroupPage() {
 }
 
 function GroupRoute({ groupId }) {
-  const [joined, setJoined] = useState(() => Boolean(loadGroup(groupId)?.memberToken))
+  const [view, setView] = useState(() =>
+    loadGroup(groupId)?.memberToken ? { name: 'result' } : { name: 'join' },
+  )
 
-  if (!joined) return <GroupJoinPage groupId={groupId} onJoined={() => setJoined(true)} />
-  // TODO: S6 모임 결과
-  return <PlaceholderPage title="모임" code="S6" />
+  const handleLeft = useCallback(
+    (notice = '모임에서 빠졌어요. 다시 참여할 수 있어요') => setView({ name: 'join', notice }),
+    [],
+  )
+  const handleGone = useCallback(() => setView({ name: 'gone' }), [])
+
+  if (view.name === 'gone') return <GroupGoneScreen groupId={groupId} />
+  if (view.name === 'join') {
+    return (
+      <GroupJoinPage
+        groupId={groupId}
+        notice={view.notice}
+        onJoined={() => setView({ name: 'result' })}
+      />
+    )
+  }
+  return <GroupResultPage groupId={groupId} onLeft={handleLeft} onGone={handleGone} />
 }
