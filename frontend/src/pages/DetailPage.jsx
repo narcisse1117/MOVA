@@ -12,7 +12,7 @@ import Toast from '../components/Toast.jsx'
 import { useRouteSearch } from '../hooks/useRouteSearch.js'
 import { useToast } from '../hooks/useToast.js'
 import { formatFareRange } from '../utils/format.js'
-import { loadSearch, saveChosenOption } from '../utils/storage.js'
+import { loadSearch, saveChosenOption, saveGuide } from '../utils/storage.js'
 import styles from './DetailPage.module.css'
 
 /** 명세 C-04 기준일 안내 (서버 data_as_of: 버스·심야버스 날짜) */
@@ -91,9 +91,20 @@ export default function DetailPage() {
     sendEvent('select_option', { optionKind: option.kind })
   }
 
+  // '이렇게 갈게요' → 고른 안 기록(S7) + 길안내 시작
   function handleChoose() {
     choose()
-    showToast('이 경로를 저장했어요')
+    saveGuide({
+      kind: 'route',
+      chosenId: option.id,
+      origin: search.origin.label,
+      destination: search.destination.label,
+      departureIso: data.departureIso,
+      option,
+      backTo: `/result/${option.id}`,
+      backState: search,
+    })
+    navigate('/guide')
   }
 
   async function handleShare() {

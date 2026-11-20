@@ -1,0 +1,34 @@
+/* 길안내: S3 경로 상세(DetailPage.module.css)를 그대로 쓰고, 여기에는 덧붙이는 것만 */
+
+/* 놓쳤을 때 — S3 타임라인의 '놓쳤을 때' 상자와 같은 모양 */
+.missed {
+  order: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  color: var(--text-strong);
+}
+
+.missedDesc {
+  color: var(--text-secondary);
+}
+
+/* 도착 후 질문 카드 (S7 내용을 흰 카드 안에) */
+.ask {
+  order: 0;
+  padding: 20px;
+  border-radius: var(--radius-card-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+}
+
+.settle {
+  margin-top: 16px;
+}
+
+.raised.raised {
+  background: var(--surface-default);
+}

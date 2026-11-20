@@ -4,6 +4,7 @@ import DetailPage from './pages/DetailPage.jsx'
 import GroupNewPage from './pages/GroupNewPage.jsx'
 import GroupPage from './pages/GroupPage.jsx'
 import GroupRoutePage from './pages/GroupRoutePage.jsx'
+import GuidePage from './pages/GuidePage.jsx'
 import InputPage from './pages/InputPage.jsx'
 import OutOfAreaPage from './pages/OutOfAreaPage.jsx'
 import PlaceholderPage from './pages/PlaceholderPage.jsx'
@@ -22,6 +23,9 @@ export default function App() {
         <Route path="/result" element={<ResultPage />} />
         {/* S3 경로 상세 */}
         <Route path="/result/:optionId" element={<DetailPage />} />
+
+        {/* 길안내 ('이렇게 갈게요' 다음) */}
+        <Route path="/guide" element={<GuidePage />} />
 
         {/* S4 모임 만들기 */}
         <Route path="/group/new" element={<GroupNewPage />} />
