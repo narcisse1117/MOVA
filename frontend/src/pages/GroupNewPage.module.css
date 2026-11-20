@@ -1,5 +1,9 @@
-/* 모바일: 묶음 없이 page-body 안에 바로 쌓이게 */
-.panel {
+/* 모바일: 제목 → 입력 → 버튼 → 링크 카드 순서로 쌓이게 (와이어프레임 S4) */
+.form {
+  display: contents;
+}
+
+.side {
   display: contents;
 }
 
@@ -22,19 +26,15 @@
   pointer-events: none;
 }
 
-.help {
-  color: var(--text-tertiary);
-}
-
 .error {
   color: #d23b3b;
 }
 
-/* 링크 생성 후 카드 */
+/* 링크 생성 후 카드: 회색 박스 안에 링크와 글자 버튼 두 개 */
 .created {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   padding: 16px;
   border-radius: var(--radius-card);
   background: var(--surface-subtle);
@@ -42,10 +42,8 @@
 }
 
 .link {
-  padding: 10px 12px;
-  border-radius: var(--radius-segment);
-  background: var(--surface-default);
-  color: var(--text-strong);
+  padding: 8px 12px;
+  color: var(--text-secondary);
   word-break: break-all;
   user-select: all; /* 복사가 막힌 브라우저에서 길게 눌러 선택하기 쉽게 */
 }
@@ -53,33 +51,51 @@
 .linkActions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
 }
 
 .linkActions button {
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-segment);
+  background: transparent;
+  color: var(--text-strong);
+}
+
+.linkActions button:hover {
   background: var(--surface-default);
 }
 
-/* ── 데스크톱 (1024px 이상): 회색 배경 가운데에 흰 카드 한 장 ── */
+/* ── 데스크톱 (1024px 이상): 제목 아래 왼쪽 흰 입력 카드, 오른쪽 링크 카드 ── */
 @media (min-width: 1024px) {
   .appBar {
-    background: var(--bg-canvas);
+    background: var(--surface-default);
   }
 
   .layout.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
+    align-items: start;
+    gap: 40px 24px;
     width: 100%;
-    max-width: 560px;
+    max-width: 880px;
     margin: 0 auto;
-    padding: 32px 0 72px;
+    padding: 40px 0 72px;
   }
 
-  .panel {
+  .intro {
+    grid-column: 1 / -1;
+  }
+
+  .form {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding: 32px;
+    padding: 24px;
     border-radius: var(--radius-card-lg);
     background: var(--surface-default);
-    box-shadow: var(--elevation-raised);
+  }
+
+  .side {
+    display: block;
   }
 }

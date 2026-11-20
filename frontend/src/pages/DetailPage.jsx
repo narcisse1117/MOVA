@@ -83,6 +83,10 @@ export default function DetailPage() {
       arrival: option.arrival,
       fareRange: [option.fareMin, option.fareMax],
       distanceM: option.taxiDistanceM,
+      // S7(도착 후 질문): 택시를 탄 안만 묻고, 실제 택시비 + 대중교통 요금으로 실제 총액을 만든다
+      hasTaxi: option.taxiDistanceM > 0 || option.kind === 'taxi',
+      transitFare: option.transitFare,
+      savingVsTaxi: option.savingVsTaxi,
     })
     sendEvent('select_option', { optionKind: option.kind })
   }

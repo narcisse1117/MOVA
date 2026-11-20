@@ -54,10 +54,40 @@ const CHOSEN_KEY = 'mova:chosenOption'
 
 export function saveChosenOption(chosen) {
   try {
-    localStorage.setItem(CHOSEN_KEY, JSON.stringify({ ...chosen, savedAt: Date.now() }))
+    localStorage.setItem(
+      CHOSEN_KEY,
+      JSON.stringify({ ...chosen, savedAt: Date.now(), sessionId: getSessionId() }),
+    )
     return true
   } catch {
     return false
+  }
+}
+
+/** S7: 한 검색에 한 번만 묻도록 물어본 시각을 남김 */
+export function markChosenAsked() {
+  const chosen = loadChosenOption()
+  if (!chosen) return
+  try {
+    localStorage.setItem(CHOSEN_KEY, JSON.stringify({ ...chosen, askedAt: Date.now() }))
+  } catch {
+    // 저장이 막혀 있으면 이번에만 묻고 끝
+  }
+}
+
+// 이번 방문(탭)을 구분하는 값 — S7 '다음에 앱을 열면'을 판단할 때 사용
+const SESSION_KEY = 'mova:session'
+
+export function getSessionId() {
+  try {
+    let id = sessionStorage.getItem(SESSION_KEY)
+    if (!id) {
+      id = `s_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`
+      sessionStorage.setItem(SESSION_KEY, id)
+    }
+    return id
+  } catch {
+    return 's_unknown'
   }
 }
 
@@ -65,6 +95,25 @@ export function loadChosenOption() {
   try {
     const raw = localStorage.getItem(CHOSEN_KEY)
     return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+// 모임 '내 경로'(S6 → S3) — 주소가 들어 있어 URL 대신 이 탭에만 (새로고침 대비)
+const GROUP_ROUTE_KEY = 'mova:groupRoute'
+
+export function saveGroupRoute(payload) {
+  try {
+    sessionStorage.setItem(GROUP_ROUTE_KEY, JSON.stringify(payload))
+  } catch {
+    // 저장 실패해도 라우터 state로 전달되므로 무시
+  }
+}
+
+export function loadGroupRoute() {
+  try {
+    return JSON.parse(sessionStorage.getItem(GROUP_ROUTE_KEY) ?? 'null')
   } catch {
     return null
   }

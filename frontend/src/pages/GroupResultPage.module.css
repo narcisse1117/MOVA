@@ -1,0 +1,204 @@
+.page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+}
+
+/* 큰 제목은 데스크톱에서만 (모바일은 앱 바 제목) */
+.heading {
+  display: none;
+}
+
+.muted {
+  color: var(--text-tertiary);
+}
+
+/* 모바일: 요약 → 묶음 → 정산 → 참여자 순서로 쌓이게 */
+.side {
+  display: contents;
+}
+
+/* 요약 카드: 왼쪽 두 줄, 오른쪽 공유 */
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-card-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+  color: var(--text-strong);
+}
+
+.summary > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.share {
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-segment);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.share:hover {
+  background: var(--surface-subtle);
+}
+
+.bundles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* 경로·정산·참여자를 각각 박스로 나눠 구분 */
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card-lg);
+  background: var(--surface-subtle);
+  color: var(--text-strong);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+}
+
+.empty {
+  padding: 20px 16px;
+  border-radius: var(--radius-card-lg);
+  background: var(--surface-default);
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+/* ── S6-b 계산 중 ── */
+.calculating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 0 0;
+  text-align: center;
+  color: var(--text-strong);
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  border: 4px solid var(--surface-muted);
+  border-top-color: var(--border-strong);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  margin-top: 48px;
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--radius-card-lg);
+  background: var(--surface-default);
+  box-shadow: var(--elevation-card);
+}
+
+.skeleton span {
+  height: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  animation: pulse 1.2s var(--ease-standard) infinite alternate;
+}
+
+.skeleton span:nth-child(1) {
+  width: 35%;
+}
+
+.skeleton span:nth-child(2) {
+  width: 65%;
+}
+
+.skeleton span:nth-child(3) {
+  width: 85%;
+}
+
+.skeleton span:nth-child(4) {
+  width: 45%;
+}
+
+@keyframes pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 3s;
+  }
+}
+
+.raised.raised {
+  background: var(--surface-default);
+}
+
+/* ── 데스크톱 (1024px 이상): 제목 → 요약(전체 폭) → 왼쪽 묶음 · 오른쪽 정산 ── */
+@media (min-width: 1024px) {
+  .appBar {
+    background: var(--surface-default);
+  }
+
+  .layout.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 24px;
+    width: 100%;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 32px 0 72px;
+  }
+
+  .heading {
+    display: block;
+    grid-column: 1 / -1;
+    color: var(--text-strong);
+  }
+
+  .summary,
+  .calculating {
+    grid-column: 1 / -1;
+  }
+
+  .skeletons {
+    flex-direction: row;
+  }
+
+  .skeleton {
+    flex: 1;
+  }
+
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+}
