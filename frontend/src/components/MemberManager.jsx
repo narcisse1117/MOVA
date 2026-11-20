@@ -64,7 +64,7 @@ export default function MemberManager({
               <div className={styles.rowActions}>
                 <button
                   type="button"
-                  className={`${styles.link} t-label-medium`}
+                  className={`${styles.link} ${styles.soft} t-label-medium`}
                   aria-expanded={editing}
                   onClick={() => setEditing((v) => !v)}
                 >
