@@ -99,8 +99,12 @@ export function routeState(option, names, now) {
     arrived: false,
     arrivalMs,
     top: {
-      badges: [{ text: '다음 탈 차', tone: 'primary' }, ...(kind ? [{ text: kind }] : [])],
-      big: remainText(boardMs(next) - now),
+      // 택시는 시간표대로 오는 차가 아니라 직접 잡는 것이라 '다음 탈 차' 대신 '택시 잡기까지'
+      badges:
+        next.type === 'taxi'
+          ? [{ text: '택시 잡기까지', tone: 'primary' }]
+          : [{ text: '다음 탈 차', tone: 'primary' }, ...(kind ? [{ text: kind }] : [])],
+      big: remainText(boardMs(next) - now, next.type === 'taxi' ? '지금 잡기' : '곧 출발'),
       meta:
         next.type === 'taxi'
           ? `택시 · ${clockOf(boardMs(next))} ${name(next.from)} 앞에서 잡기`
@@ -150,10 +154,7 @@ export function taxiState(guide, now) {
       arrived: false,
       arrivalMs,
       top: {
-        badges: [
-          { text: '다음 탈 차', tone: 'primary' },
-          ...badges.slice(0, 1).map((b) => ({ text: b.text })),
-        ],
+        badges: [{ text: '출발까지', tone: 'primary' }, { text: badges[0].text }],
         big: remainText(leaveMs - now),
         meta: `택시 · ${guide.leaveAt.slice(11, 16)} ${meeting.label} 앞에서 ${n > 1 ? '합승' : '승차'}`,
       },
