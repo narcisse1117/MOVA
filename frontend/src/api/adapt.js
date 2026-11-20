@@ -21,7 +21,8 @@ function minutesBetween(fromIso, toIso) {
   return Math.max(1, Math.round((new Date(toIso) - new Date(fromIso)) / 60000))
 }
 
-function legMinutes(leg) {
+/** 구간 하나의 분 (도보는 duration_sec, 타는 구간은 출발~도착) — S6 묶음 카드도 사용 */
+export function legMinutes(leg) {
   if (leg.type === 'walk') return Math.max(1, Math.round(leg.duration_sec / 60))
   return minutesBetween(leg.departure, leg.arrival)
 }
@@ -84,6 +85,7 @@ function adaptOption(o, fallbackId) {
     durationMin: o.duration_min ?? null,
     arrival: hhmm(o.arrival),
     savingVsTaxi: o.saving_vs_taxi ?? null,
+    transitFare: o.fare_detail?.transit ?? 0, // 실제 택시비에 더해 실제 총액을 만들 때 (S7)
     delayVsTaxiMin: o.delay_vs_taxi_min ?? null,
     bar: legs.map((l) => ({ mode: legMode(l), label: legLabel(l), minutes: legMinutes(l) })),
     tight: warnings

@@ -44,3 +44,16 @@ export function departureMinutes(departure, now = new Date()) {
   if (departure && departure !== 'now') return toMinutes(departure)
   return toMinutes(fromMinutes(now.getHours() * 60 + now.getMinutes()))
 }
+
+// ── 모임(S6)용: 서버가 주는 서울 시각 문자열('2026-11-20T00:21:42+09:00') ──
+
+/** ISO → 'HH:MM' (서울 시각 문자열 그대로) */
+export const hhmmOf = (iso) => (iso ? iso.slice(11, 16) : '')
+
+/** ms → 서울 시각 'YYYY-MM-DDTHH:MM' (서버 leave_at 형식) */
+export function seoulLocal(ms) {
+  return new Date(ms + 9 * 3600 * 1000).toISOString().slice(0, 16)
+}
+
+/** 'YYYY-MM-DDTHH:MM'(서울) → ms */
+export const seoulMs = (local) => new Date(`${local}:00+09:00`).getTime()

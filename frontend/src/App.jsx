@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import DetailPage from './pages/DetailPage.jsx'
 import GroupNewPage from './pages/GroupNewPage.jsx'
+import GroupPage from './pages/GroupPage.jsx'
 import InputPage from './pages/InputPage.jsx'
 import OutOfAreaPage from './pages/OutOfAreaPage.jsx'
 import PlaceholderPage from './pages/PlaceholderPage.jsx'
@@ -22,8 +23,10 @@ export default function App() {
       {/* S4 모임 만들기 */}
       <Route path="/group/new" element={<GroupNewPage />} />
 
-      {/* 아래 화면들은 다음 단계에서 구현 */}
-      <Route path="/g/:groupId" element={<PlaceholderPage title="모임" code="S5 · S6" />} />
+      {/* S5 모임 참여 (이미 참여한 기기면 S6) */}
+      <Route path="/g/:groupId" element={<GroupPage />} />
+
+      {/* 없는 주소 */}
       <Route path="*" element={<PlaceholderPage title="페이지 없음" code="404" />} />
     </Routes>
   )
