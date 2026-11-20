@@ -24,7 +24,8 @@ const clock = (ms) =>
  * S6 모임 결과 /g/:groupId (와이어프레임 S6 · S6-b, 이 기기가 참여한 모임)
  * - 요약(참여 인원 · 갱신 시각 · 공유) → 묶음 카드(출발 마감 빠른 순) → 정산 → 참여자
  * - leave_at은 모임 출발 시각(S4 '출발 시각'). 이 시각에 막차가 끊긴 사람끼리 서버가 택시로 묶는다
- * - 10초마다 갱신, 앱 바 '자동 갱신'으로 끄고 켬
+ * - 30초마다 갱신(서버 요청 제한 때문에 명세 10초에서 늘림), 앱 바 '자동 갱신'으로 끄고 켬
+ *   모임 출발 시각 30분 뒤에는 자동 갱신을 멈추고 앱 바 '새로 고침'으로만 다시 불러옴
  *
  * 와이어프레임에 있지만 서버(README)에 없어 뺀 것: 참여 마감 시각, 토스·카카오페이 송금 버튼,
  * 대중교통으로 가는 사람끼리 묶은 카드(서버는 택시만 묶음 → 각자 카드로 보여줌)
@@ -39,10 +40,12 @@ export default function GroupResultPage({ groupId, onLeft, onGone }) {
   // 첫 응답의 출발 시각을 leave_at으로 다시 불러 택시 묶음·정산까지 받는다
   const [departure, setDeparture] = useState(null)
   const leaveAt = departure ? seoulLocal(new Date(departure).getTime()) : undefined
-  const { group, error, fetchedAt, refresh } = useGroup(groupId, {
+  const { group, error, fetchedAt, refresh, autoStopped, retryAt } = useGroup(groupId, {
     token: saved.memberToken,
     leaveAt,
     paused: !auto,
+    // 출발 시각 30분 뒤 자동 갱신 멈춤 ('지금' 출발 모임은 만든 뒤에야 사람들이 들어오므로 여유를 둠)
+    stopAt: departure ? new Date(departure).getTime() + 30 * 60 * 1000 : null,
   })
   if (group?.departure && group.departure !== departure) setDeparture(group.departure)
 
@@ -120,7 +123,11 @@ export default function GroupResultPage({ groupId, onLeft, onGone }) {
         wide
         className={styles.appBar}
         onBack={() => navigate('/')}
-        action={{ label: auto ? '자동 갱신' : '갱신 멈춤', onClick: () => setAuto((v) => !v) }}
+        action={
+          autoStopped
+            ? { label: '새로 고침', onClick: refresh }
+            : { label: auto ? '자동 갱신' : '갱신 멈춤', onClick: () => setAuto((v) => !v) }
+        }
       />
 
       <div className={`page-body ${styles.layout}`} data-layout="wide">
@@ -167,10 +174,24 @@ export default function GroupResultPage({ groupId, onLeft, onGone }) {
                   참여 {group.members.length}명{me && ` · 나는 ${me.nickname}`}
                 </p>
                 <p className="t-body-medium-strong">
-                  {auto ? '10초마다 갱신' : '자동 갱신 꺼짐'}
+                  {autoStopped
+                    ? '출발 시각이 지나 자동 갱신을 멈췄어요'
+                    : auto
+                      ? '30초마다 갱신'
+                      : '자동 갱신 꺼짐'}
                   {fetchedAt && ` · 마지막 ${clock(fetchedAt)}`}
-                  {error && ' · 갱신 실패'}
                 </p>
+                {retryAt ? (
+                  <p className={`${styles.muted} t-caption`}>
+                    요청이 많아 잠시 쉬어요 · {clock(retryAt)}부터 다시 불러와요
+                  </p>
+                ) : (
+                  error && (
+                    <p className={`${styles.muted} t-caption`}>
+                      새로 고치지 못했어요. 마지막으로 받은 내용이에요
+                    </p>
+                  )
+                )}
               </div>
               <button
                 type="button"
