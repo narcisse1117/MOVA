@@ -9,18 +9,12 @@ import PlaceField from '../components/PlaceField.jsx'
 import Reveal from '../components/Reveal.jsx'
 import Toast from '../components/Toast.jsx'
 import { useToast } from '../hooks/useToast.js'
-import { loadHome, saveGroup } from '../utils/storage.js'
+import { formatDateTime } from '../utils/format.js'
+import { loadHomePlace, saveGroup } from '../utils/storage.js'
 import { DEPARTURE_OPTIONS } from '../utils/time.js'
 import styles from './GroupNewPage.module.css'
 
 const emptyPoint = { text: '', place: null }
-
-/** '2026-11-20T23:00:00+09:00' → '11월 20일 23:00' */
-function formatDateTime(iso) {
-  if (!iso) return ''
-  const [, m, d] = iso.slice(0, 10).split('-')
-  return `${Number(m)}월 ${Number(d)}일 ${iso.slice(11, 16)}`
-}
 
 /**
  * 클립보드 복사 — 단톡방 인앱 브라우저처럼 clipboard API가 막힌 곳도 대비 (명세 N-05)
@@ -44,12 +38,6 @@ async function copyText(text) {
   }
 }
 
-/** 예전 형식(좌표 없음)으로 저장된 집은 쓰지 않음 */
-function loadValidHome() {
-  const home = loadHome()
-  return home && home.lat != null && home.label ? home : null
-}
-
 /**
  * S4 모임 만들기 /group/new
  * 1) POST /api/groups → id, share_path, admin_token(이 브라우저에만 저장)
@@ -60,7 +48,7 @@ function loadValidHome() {
  */
 export default function GroupNewPage() {
   const navigate = useNavigate()
-  const [home] = useState(loadValidHome)
+  const [home] = useState(loadHomePlace)
   const [toast, showToast] = useToast()
 
   const [name, setName] = useState('')
