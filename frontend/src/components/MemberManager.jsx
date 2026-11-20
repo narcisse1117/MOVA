@@ -75,6 +75,7 @@ export default function MemberManager({
                   confirmLabel="정말 빠질게요"
                   onConfirm={onLeave}
                   disabled={busy}
+                  tone="danger"
                 />
               </div>
             ) : (
@@ -142,6 +143,7 @@ export default function MemberManager({
             confirmLabel="정말 끝낼게요 (도착지도 바로 지워요)"
             onConfirm={onEnd}
             disabled={busy}
+            tone="danger"
             className={styles.end}
           />
         </>

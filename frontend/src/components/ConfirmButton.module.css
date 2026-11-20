@@ -1,0 +1,43 @@
+.button {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-segment);
+  background: transparent;
+  color: var(--text-tertiary);
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.button:hover:not(:disabled) {
+  background: var(--surface-subtle);
+}
+
+.armed,
+.armed:hover:not(:disabled) {
+  background: #fde8e8;
+  color: #d23b3b;
+}
+
+/* 흐린 빨간 버튼 (정산 규칙 배너처럼 옅은 배경 + 진한 글자) */
+.danger {
+  padding: 8px 14px;
+  background: #fdeeee;
+  color: #c43c3c;
+}
+
+.danger:hover:not(:disabled) {
+  background: #fbe2e2;
+}
+
+/* 한 번 눌러 확인을 기다리는 동안은 조금 더 진하게 */
+.danger.armed,
+.danger.armed:hover:not(:disabled) {
+  background: #f8d4d4;
+  color: #b02a2a;
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
